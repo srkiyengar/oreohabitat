@@ -1,0 +1,449 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="test" name="oreo_assembly">
+<!-- Robot definition for configuration option #2-->
+    <material name="blue">
+        <color rgba="0 0 1 1"/>
+    </material>
+    <material name="red">
+        <color rgba="1 0 0 1"/>
+    </material>
+    <material name="green">
+        <color rgba="0 1 0 1"/>
+    </material>                    
+
+    <link name="dummy_link">
+    </link>
+    
+    <link name ="base_link">
+        <visual>
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <geometry>
+                <mesh filename="stl/Base_asm.STL"/>
+            </geometry>
+            <material name="blue"/>
+        </visual>
+        <inertial>
+			<origin xyz="0 0 0" rpy="0 0 0"/>
+            <mass value="960.94e-3"/>
+			<inertia ixx="1920180.36e-9" ixy="-4377.79e-9" ixz="50887.44e-9" iyy="1940290.2e-9" iyz="50887.4e-9" izz="1720792.46e-9"/>
+		</inertial>
+        <collision>
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <geometry>
+                <mesh filename="stl/Base_asm.STL"/>
+            </geometry>
+        </collision>
+    </link>
+    <joint name="base_joint" type="fixed">
+		<origin xyz="0 0 0" rpy="0 0 0"/>
+        <parent link="dummy_link"/>
+		<child link="base_link"/>
+	</joint>
+
+    <link name ="neck_link">
+        <visual>
+            <origin xyz="0.28e-3 0.39e-3 75.87e-3" rpy="0 0 0"/>
+            <geometry>
+                <mesh filename="stl/Neck_asm.STL"/>
+            </geometry>
+            <material name="red"/>
+        </visual>
+        <inertial>
+            <origin xyz="0.28e-3 0.39e-3 75.87e-3" rpy="0 0 0"/>
+			<mass value="207.19e-3"/>
+			<inertia ixx="801982.44e-9" ixy="3034.04e-9" ixz="6392.90e-9" iyy="678687.19e-9" iyz="7406.98e-9" izz="135536.08e-9"/>
+		</inertial>
+        <collision>
+            <origin xyz="0.28e-3 0.39e-3 75.87e-3" rpy="0 0 0"/>
+            <geometry>
+                <mesh filename="stl/Neck_asm.STL"/>
+            </geometry>
+        </collision>
+    </link>
+    <joint name="neck_joint" type="continuous">
+        <origin xyz="35.81e-3 -0.67e-3 -2.27e-3" rpy="0 0 0"/>
+        <axis xyz="0 0 1" rpy="0 0 0"/>
+        <parent link="base_link"/>
+        <child link="neck_link"/>
+    </joint>
+
+    <link name="pitch_piece_link">
+        <visual>
+            <origin xyz="2.22e-3 -40.85e-3 -0.01e-3" rpy="0 0 0"/>
+            <geometry>
+                <mesh filename="stl/pitch_piece.STL"/>
+            </geometry>
+            <material name="blue"/>
+        </visual>
+        <inertial>
+            <origin xyz="2.22e-3 -40.85e-3 -0.01e-3" rpy="0 0 0"/>
+			<mass value="148.50e-3"/>
+			<inertia ixx="74183.85e-9" ixy="-1077.69e-9" ixz="32.52e-9" iyy="15190.93e-9" iyz="41.48e-9" izz="82029.85e-9"/>
+		</inertial>
+        <collision>
+            <origin xyz="2.22e-3 -40.85e-3 -0.01e-3" rpy="0 0 0"/>
+            <geometry>
+                <mesh filename="stl/pitch_piece.STL"/>
+            </geometry>
+        </collision>
+    </link>
+    <joint name="pitch_piece_joint" type="continuous">
+        <origin xyz="0 44.45e-3 174.99e-3" rpy="0 0 0"/>
+        <axis xyz="0 1 0"/>
+        <parent link="neck_link"/>
+        <child link="pitch_piece_link"/>
+    </joint>
+    
+    <link name ="skull_link">
+        <visual>
+            <origin xyz="-49.79e-3 -1.02e-3 43.76e-3" rpy="0 0 0"/>
+            <geometry>
+                <mesh filename="stl/Skull.STL"/>
+            </geometry>
+            <material name="red"/>
+        </visual>
+        <inertial>
+            <origin xyz="-49.79e-3 -1.02e-3 43.76e-3" rpy="0 0 0"/>
+			<mass value="642.29e-3"/>
+			<inertia ixx="1214351.37e-9" ixy="13329.44e-9" ixz="-40635.65e-9" iyy="1635371.86e-9" iyz="-25764.25e-9" izz="1270249.78e-9"/>
+		</inertial>
+        <collision>
+            <origin xyz="-49.79e-3 -1.02e-3 43.76e-3" rpy="0 0 0"/>
+            <geometry>
+                <mesh filename="stl/Skull.STL"/>
+            </geometry>
+        </collision>
+    </link>
+    <joint name="skull_joint" type="continuous">
+        <origin xyz="28.58e-3 -44.45e-3 0" rpy="0 0 0"/>
+        <axis xyz="1 0 0"/>
+        <parent link="pitch_piece_link"/>
+        <child link="skull_link"/>
+    </joint>
+    
+    <link name ="linear_motor_rod_link_far_left">
+        <visual>
+            <origin xyz="6.13e-3 0 0" rpy="0 0 0"/>
+            <geometry>
+                <mesh filename="stl/linear_motor_rod_assembly.STL"/>
+            </geometry>
+            <material name="blue"/>
+        </visual>
+        <inertial>
+            <origin xyz="6.13e-3 0 0" rpy="0 0 0"/>
+            <mass value="32.47e-3"/>
+            <inertia ixx="219.49e-9" ixy="-25.89e-9" ixz="0.03e-9" iyy="59215.55e-9" iyz="0.01e-9" izz="59246.15e-9"/>
+        </inertial>
+        <collision>
+            <origin xyz="6.13e-3 0 0" rpy="0 0 0"/>
+            <geometry>
+                <mesh filename="stl/linear_motor_rod_assembly.STL"/>
+            </geometry>
+        </collision>
+    </link>
+    <joint name="linear_motor_rod_joint_far_left" type="prismatic">
+        <origin xyz="-63.32e-3 43.5e-3 32.08e-3" rpy="3.1415 -0.30682 0"/>
+        <axis xyz="1 0 0"/>
+        <limit effort="30" velocity="1.0" lower="-23.4e-3" upper="23.4e-3"/> 
+        <parent link="skull_link"/>
+        <child link="linear_motor_rod_link_far_left"/>
+    </joint>    
+
+    <link name ="linear_motor_rod_link_mid_left">
+        <visual>
+            <origin xyz="6.13e-3 0 0" rpy="0 0 0"/>
+            <geometry>
+                <mesh filename="stl/linear_motor_rod_assembly.STL"/>
+            </geometry>
+            <material name="blue"/>
+        </visual>
+        <inertial>
+            <origin xyz="6.13e-3 0 0" rpy="0 0 0"/>
+            <mass value="32.47e-3"/>
+            <inertia ixx="219.49e-9" ixy="-25.89e-9" ixz="0.03e-9" iyy="59215.55e-9" iyz="0.01e-9" izz="59246.15e-9"/>
+        </inertial>
+        <collision>
+            <origin xyz="6.13e-3 0 0" rpy="0 0 0"/>
+            <geometry>
+                <mesh filename="stl/linear_motor_rod_assembly.STL"/>
+            </geometry>
+        </collision>
+    </link>
+    <joint name="linear_motor_rod_joint_mid_left" type="prismatic">
+        <origin xyz="-63.32e-3 14.5e-3 32.08e-3" rpy="3.1415 -0.30682 0"/>
+        <axis xyz="1 0 0"/>
+        <limit effort="30" velocity="1.0" lower="-23.4e-3" upper="23.4e-3"/> 
+        <parent link="skull_link"/>
+        <child link="linear_motor_rod_link_mid_left"/>
+    </joint>
+
+    <link name ="linear_motor_rod_link_mid_right">
+        <visual>
+            <origin xyz="6.13e-3 0 0" rpy="0 0 0"/>
+            <geometry>
+                <mesh filename="stl/linear_motor_rod_assembly.STL"/>
+            </geometry>
+            <material name="blue"/>
+        </visual>
+        <inertial>
+            <origin xyz="6.13e-3 0 0" rpy="0 0 0"/>
+            <mass value="32.47e-3"/>
+            <inertia ixx="219.49e-9" ixy="-25.89e-9" ixz="0.03e-9" iyy="59215.55e-9" iyz="0.01e-9" izz="59246.15e-9"/>
+        </inertial>
+        <collision>
+            <origin xyz="6.13e-3 0 0" rpy="0 0 0"/>
+            <geometry>
+                <mesh filename="stl/linear_motor_rod_assembly.STL"/>
+            </geometry>
+        </collision>
+    </link>
+    <joint name="linear_motor_rod_joint_mid_right" type="prismatic">
+        <origin xyz="-63.32e-3 -14.5e-3 32.08e-3" rpy="0 -0.30682 0"/>
+        <axis xyz="1 0 0"/>
+        <limit effort="30" velocity="1.0" lower="-23.4e-3" upper="23.4e-3"/> 
+        <parent link="skull_link"/>
+        <child link="linear_motor_rod_link_mid_right"/>
+    </joint>
+
+    <link name ="linear_motor_rod_link_far_right">
+        <visual>
+            <origin xyz="6.13e-3 0 0" rpy="0 0 0"/>
+            <geometry>
+                <mesh filename="stl/linear_motor_rod_assembly.STL"/>
+            </geometry>
+            <material name="blue"/>
+        </visual>
+        <inertial>
+            <origin xyz="6.13e-3 0 0" rpy="0 0 0"/>
+            <mass value="32.47e-3"/>
+            <inertia ixx="219.49e-9" ixy="-25.89e-9" ixz="0.03e-9" iyy="59215.55e-9" iyz="0.01e-9" izz="59246.15e-9"/>
+        </inertial>
+        <collision>
+            <origin xyz="6.13e-3 0 0" rpy="0 0 0"/>
+            <geometry>
+                <mesh filename="stl/linear_motor_rod_assembly.STL"/>
+            </geometry>
+        </collision>
+    </link>
+    <joint name="linear_motor_rod_joint_far_right" type="prismatic">
+        <origin xyz="-63.32e-3 -43.5e-3 32.08e-3" rpy="0 -0.30682 0"/>
+        <axis xyz="1 0 0"/>
+        <limit effort="30" velocity="1.0" lower="-23.4e-3" upper="23.4e-3"/> 
+        <parent link="skull_link"/>
+        <child link="linear_motor_rod_link_far_right"/>
+    </joint>
+    
+    <link name ="dogbone_link_far_left">
+        <visual>
+            <origin xyz="30.25e-3 0 0" rpy="0 0 0"/>
+            <geometry>
+                <mesh filename="stl/dogbone.STL"/>
+            </geometry>
+            <material name="red"/>
+        </visual>
+        <inertial>
+            <origin xyz="30.25e-3 0 0" rpy="0 0 0"/>
+            <mass value="3.93e-3"/>
+            <inertia ixx="8.36e-9" ixy="0" ixz="0" iyy="961.09e-9" iyz="0" izz="961.09e-9"/>
+        </inertial>
+        <collision>
+            <origin xyz="30.25e-3 0 0" rpy="0 0 0"/>
+            <geometry>
+                <mesh filename="stl/dogbone.STL"/>
+            </geometry>
+        </collision>
+    </link>
+    <joint name="dogbone_joint_far_left" type="spherical">
+        <origin xyz="79.77e-3 0 0" rpy="3.1415 -0.566 0"/>
+        <parent link="linear_motor_rod_link_far_left"/>
+        <child link="dogbone_link_far_left"/>
+    </joint>
+
+    <link name ="dogbone_link_mid_left">
+        <visual>
+            <origin xyz="30.25e-3 0 0" rpy="0 0 0"/>
+            <geometry>
+                <mesh filename="stl/dogbone.STL"/>
+            </geometry>
+            <material name="red"/>
+        </visual>
+        <inertial>
+            <origin xyz="30.25e-3 0 0" rpy="0 0 0"/>
+            <mass value="3.93e-3"/>
+            <inertia ixx="8.36e-9" ixy="0" ixz="0" iyy="961.09e-9" iyz="0" izz="961.09e-9"/>
+        </inertial>
+        <collision>
+            <origin xyz="30.25e-3 0 0" rpy="0 0 0"/>
+            <geometry>
+                <mesh filename="stl/dogbone.STL"/>
+            </geometry>
+        </collision>
+    </link>
+    <joint name="dogbone_joint_mid_left" type="spherical">
+        <origin xyz="79.77e-3 0 0" rpy="3.1415 -0.566 0"/>
+        <parent link="linear_motor_rod_link_mid_left"/>
+        <child link="dogbone_link_mid_left"/>
+    </joint>
+
+    <link name ="dogbone_link_mid_right">
+        <visual>
+            <origin xyz="30.25e-3 0 0" rpy="0 0 0"/>
+            <geometry>
+                <mesh filename="stl/dogbone.STL"/>
+            </geometry>
+            <material name="red"/>
+        </visual>
+        <inertial>
+            <origin xyz="30.25e-3 0 0" rpy="0 0 0"/>
+            <mass value="3.93e-3"/>
+            <inertia ixx="8.36e-9" ixy="0" ixz="0" iyy="961.09e-9" iyz="0" izz="961.09e-9"/>
+        </inertial>
+        <collision>
+            <origin xyz="30.25e-3 0 0" rpy="0 0 0"/>
+            <geometry>
+                <mesh filename="stl/dogbone.STL"/>
+            </geometry>
+        </collision>
+    </link>
+    <joint name="dogbone_joint_mid_right" type="spherical">
+        <origin xyz="79.77e-3 0 0" rpy="0 0.566 0"/>
+        <parent link="linear_motor_rod_link_mid_right"/>
+        <child link="dogbone_link_mid_right"/>
+    </joint>
+
+    <link name ="dogbone_link_far_right">
+        <visual>
+            <origin xyz="30.25e-3 0 0" rpy="0 0 0"/>
+            <geometry>
+                <mesh filename="stl/dogbone.STL"/>
+            </geometry>
+            <material name="red"/>
+        </visual>
+        <inertial>
+            <origin xyz="30.25e-3 0 0" rpy="0 0 0"/>
+            <mass value="3.93e-3"/>
+            <inertia ixx="8.36e-9" ixy="0" ixz="0" iyy="961.09e-9" iyz="0" izz="961.09e-9"/>
+        </inertial>
+        <collision>
+            <origin xyz="30.25e-3 0 0" rpy="0 0 0"/>
+            <geometry>
+                <mesh filename="stl/dogbone.STL"/>
+            </geometry>
+            <material name="red"/>
+        </collision>
+    </link>
+    <joint name="dogbone_joint_far_right" type="spherical">
+        <origin xyz="79.77e-3 0 0" rpy="0 0.566 0"/>
+        <parent link="linear_motor_rod_link_far_right"/>
+        <child link="dogbone_link_far_right"/>
+    </joint>
+
+
+    <link name="left_eye_yolk_link">
+        <visual>
+            <origin xyz="-3.54e-3 0.26e-3 40.14e-3" rpy="0 0 0"/>
+            <geometry>
+                <mesh filename="stl/left_eye_yolk_asm.STL"/>
+            </geometry>
+            <material name="blue"/>
+        </visual>
+        <inertial>
+			<origin xyz="-3.54e-3 0.26e-3 40.14e-3" rpy="0 0 0"/>
+            <mass value="26.61e-3"/>
+			<inertia ixx="16705.86e-9" ixy="23.76e-9" ixz="-7973.22e-9" iyy="22689.47e-9" iyz="39.74e-9" izz="25867.64e-9"/>
+		</inertial>
+        <collision>
+            <origin xyz="-3.54e-3 0.26e-3 40.14e-3" rpy="0 0 0"/>
+            <geometry>
+                <mesh filename="stl/left_eye_yolk_asm.STL"/>
+            </geometry>
+        </collision>
+    </link>
+    <joint name="left_eye_yolk_joint" type="continuous">
+        <origin xyz="52e-3 29e-3 -24.96e-3" rpy="0 0 0"/>
+        <axis xyz="0 0 1"/>
+        <parent link="skull_link"/>
+        <child link="left_eye_yolk_link"/>
+    </joint>
+
+    <link name ="left_eye_link">
+        <visual>
+            <origin xyz="3.34e-3 -17.01e-3 -0.23e-3" rpy="0 0 0"/>
+            <geometry>
+                <mesh filename="stl/left_eye_asm.STL"/>
+            </geometry>
+            <material name="green"/>
+        </visual>
+        <inertial>
+            <origin xyz="3.34e-3 -17.01e-3 -0.23e-3" rpy="0 0 0"/>
+			<mass value="99.78e-3"/>
+			<inertia ixx="24413.40e-9" ixy="-2665.82e-9" ixz="3572.63e-9" iyy="53686.40e-9" iyz="-904.33e-9" izz="52249.45e-9"/>
+		</inertial>
+        <collision>
+            <origin xyz="3.34e-3 -17.01e-3 -0.23e-3" rpy="0 0 0"/>
+            <geometry>
+                <mesh filename="stl/left_eye_asm.STL"/>
+            </geometry>
+        </collision>
+    </link>
+    <joint name="left_eye_joint" type="continuous">
+        <origin xyz="0 18.45e-3 45.97e-3" rpy="0 0 0"/>
+        <axis xyz="0 1 0"/>
+        <parent link="left_eye_yolk_link"/>
+        <child link="left_eye_link"/>
+    </joint>
+
+    <link name ="right_eye_yolk_link">
+        <visual>
+            <origin xyz="6.79e-3 -0.26e-3 45.32e-3" rpy="0 0 0"/>
+            <geometry>
+                <mesh filename="stl/right_eye_yolk_asm.STL"/>
+            </geometry>
+            <material name="blue"/>
+        </visual>
+        <inertial>
+            <origin xyz="6.79e-3 -0.26e-3 45.32e-3" rpy="0 0 0"/>
+			<mass value="26.61e-3"/>
+			<inertia ixx="30380.04e-9" ixy="46.20e-9" ixz="1367.11e-9" iyy="22689.47e-9" iyz="-4.74e-9" izz="12193.47e-9"/>
+		</inertial>
+        <collision>
+            <origin xyz="6.79e-3 -0.26e-3 45.32e-3" rpy="0 0 0"/>
+            <geometry>
+                <mesh filename="stl/right_eye_yolk_asm.STL"/>
+            </geometry>
+        </collision>
+    </link>
+    <joint name="right_eye_yolk_joint" type="continuous">
+        <origin xyz="52e-3 -29e-3 -24.96e-3" rpy="0 0 0"/>
+        <axis xyz="0 0 1"/>
+        <parent link="skull_link"/>
+        <child link="right_eye_yolk_link"/>
+    </joint>
+
+    <link name ="right_eye_link">
+        <visual>
+            <origin xyz="3.34e-3 18.23e-3 -0.23e-3" rpy="0 0 0"/>
+            <geometry>
+                <mesh filename="stl/right_eye_asm.STL"/>
+            </geometry>
+            <material name="green"/>
+        </visual>
+        <inertial>
+            <origin xyz="3.34e-3 18.23e-3 -0.23e-3" rpy="0 0 0"/>
+			<mass value="99.77e-3"/>
+			<inertia ixx="24616.80e-9" ixy="819.44e-9" ixz="3572.05e-9" iyy="53681.02e-9" iyz="-755.92e-9" izz="52448.23e-9"/>
+		</inertial>
+        <collision>
+            <origin xyz="3.34e-3 18.23e-3 -0.23e-3" rpy="0 0 0"/>
+            <geometry>
+                <mesh filename="stl/right_eye_asm.STL"/>
+            </geometry>
+        </collision>
+    </link>
+    <joint name="right_eye_joint" type="continuous">
+        <origin xyz="0 -18.45e-3 45.97e-3" rpy="0 0 0"/>
+        <axis xyz="0 1 0"/>
+        <parent link="right_eye_yolk_link"/>
+        <child link="right_eye_link"/>
+    </joint>
+</robot>
