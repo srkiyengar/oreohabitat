@@ -4,8 +4,14 @@ import oreo
 import sys
 import numpy as np
 import cv2
+import matplotlib.pyplot as plt
 
 pos_list = []
+# Habitatai coordinate frame (z+ive, y+ive, xive) is Pybullet's frame (x+ive,z+ive, y+ive)
+# The rotation matrix R to express a point (x,y,z) in Habitat's frame in Pybullet's frame
+# It is the rotation matrix from Pybullet to Habitatai  row 1 [0 0 1], row 2 [1 0 0], row 3 [0,1,0]]
+# Given a point in Habitat, we do a rotation to pybullet, determine if there is collision, find out
+# the orientation of the eyes. This orientation has to be rotated using R_inverse.
 
 def move_in_yaw(pitch):
     yaw = np.linspace(-25, 25, 50)
@@ -18,8 +24,83 @@ def move_in_yaw(pitch):
             pos_list.append(my_pos)
         else:
             print("Interpolator functions not computed")
-            return
+            return 0
     return 1
+def generate_interpolated_actuator_values():
+    lefteye_l = []
+    lefteye_r = []
+    righteye_l = []
+    righteye_r = []
+
+    lefteye_l_outside_range = 0
+    lefteye_r_outside_range = 0
+    righteye_l_outside_range = 0
+    righteye_r_outside_range = 0
+
+    yaw = np.linspace(-25, 25, 100)
+    pitch = np.linspace(75,125,100)
+
+    for i in pitch:
+        for j in yaw:
+            my_angles = [j,i,j,i]
+            actuator_pos = robot.get_actuator_positions_for_a_given_yaw_pitch(my_angles)
+            if actuator_pos[0] == 1:
+                if (-0.03<actuator_pos[1]<0.03):
+                    lefteye_l.append([i,j,actuator_pos[1]])
+                else:
+                    lefteye_l_outside_range += 1
+
+                if (-0.025 < actuator_pos[2] < 0.025):
+                    lefteye_r.append([i, j, actuator_pos[2]])
+                else:
+                    lefteye_r_outside_range += 1
+
+                if (-0.03<actuator_pos[3]<0.03):
+                    righteye_l.append([i,j,actuator_pos[3]])
+                else:
+                    righteye_l_outside_range += 1
+
+                if (-0.025 < actuator_pos[4] < 0.025):
+                    righteye_r.append([i, j, actuator_pos[4]])
+                else:
+                    righteye_r_outside_range += 1
+
+            else:
+                print("Interpolator functions not computed")
+                return 0,
+    print("Bad Actuator values for LeftEye Left{} Right{}  RightEye Left{} Right".format(
+        lefteye_l_outside_range, lefteye_r_outside_range, righteye_l_outside_range, righteye_r_outside_range
+    ))
+    return 1,lefteye_l, lefteye_r, righteye_l, righteye_r
+
+def plot_interpolated(interp_val):
+    if interp_val[0] == 1:
+        lefteye_l_interp = np.array(interp_val[1])
+
+        pit = lefteye_l_interp[:, 0]
+        yaw = lefteye_l_interp[:, 1]
+        left_a = lefteye_l_interp[:, 2]
+        fig = plt.figure()
+        ax1 = fig.add_subplot(111, projection='3d')
+        ax1.scatter(yaw, pit, left_a, 'z', c='coral', )
+        ax1.set_xlabel('Yaw in degrees')
+        ax1.set_ylabel('Pitch in degrees')
+        ax1.set_zlabel('Left Actuator - coral')
+        ax1.set_title('Left Eye Left Actuator - Normal')
+
+        lefteye_r_interp = np.array(interp_val[2])
+        pit = lefteye_r_interp[:, 0]
+        yaw = lefteye_r_interp[:, 1]
+        left_a = lefteye_r_interp[:, 2]
+        fig = plt.figure()
+        ax1 = fig.add_subplot(111, projection='3d')
+        ax1.scatter(yaw, pit, left_a, 'z', c='blue', )
+        ax1.set_xlabel('Yaw in degrees')
+        ax1.set_ylabel('Pitch in degrees')
+        ax1.set_zlabel('Left Actuator - Blue')
+        ax1.set_title('Left Eye Right Actuator')
+
+    pass
 
 if __name__ == "__main__":
     robot = oreo.Oreo_Robot(True, True, "/home/oreo/Documents/oreo_sim/oreo/sim", "assembly.urdf", True)
@@ -60,7 +141,10 @@ if __name__ == "__main__":
 
     #robot.plot_interpolator_functions()
     #robot.compare_actuator_values()
-    move_in_yaw(70.0)
+    interp_val = generate_interpolated_actuator_values()
+    plot_interpolated(interp_val)
+    move_in_yaw(90.0)
+
 
     while (1):
         #robot.UpdManCtrl()
