@@ -58,7 +58,6 @@ def create_sensor(orientation=[0.0, 0.0, 0.0], position=[0.0, 0.0, 0.0], sensor_
 
     return new_sensor
 
-
 def setup_sim_and_sensors():
     left_rgb_sensor = create_sensor(orientation=[0.0, 0.7853982, 0.0], position=[eye_seperation / 2, 0, 0], sensor_uuid="left_rgb_sensor")
     right_rgb_sensor = create_sensor(position=[-eye_seperation / 2, 0, 0], sensor_uuid="right_rgb_sensor")

@@ -147,7 +147,6 @@ def rotate_sensors(my_agent, rotations):
     :param rotations: a list of rotations corresponding to [left, right and depth] in quaternions
     :return: nothing
     """
-
     my_agent_state = my_agent.get_state()
 
     my_agent_state.sensor_states["left_rgb_sensor"].rotation = \
