@@ -35,7 +35,6 @@ from habitat_sim.utils.common import (
 def create_sensor(orientation=[0.0, 0.0, 0.0], position=[0.0, 0.0, 0.0], sensor_resolution=[512, 512],
                   sensor_uuid="my_sensor", camera_type="C"):
     """
-
     :param orientation: Axis Angle representation 3 values and describes the rotation with respect to agent
     :param position: in meters x - distance from the ground y - right of the agent, z is up
     :param sensor_resolution: w has to equal to h for foveation (Ryan makes this assumption for shader)
