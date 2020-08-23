@@ -60,7 +60,7 @@ def create_sensor(orientation=[0.0, 0.0, 0.0], position=[0.0, 0.0, 0.0], sensor_
 
 
 def setup_sim_and_sensors():
-    left_rgb_sensor = create_sensor(orientation=[0.0, 0.7853982, 0.0], position=[eye_seperation / 2, 0, 0], sensor_uuid="left_rgb_sensor")
+    left_rgb_sensor = create_sensor(orientation=[0.0, 0.0, 0.0],position=[eye_seperation / 2, 0, 0], sensor_uuid="left_rgb_sensor")
     right_rgb_sensor = create_sensor(position=[-eye_seperation / 2, 0, 0], sensor_uuid="right_rgb_sensor")
     depth_sensor = create_sensor(sensor_uuid="depth_sensor", camera_type="D")
 
@@ -112,7 +112,7 @@ def set_agent_sensor_orientations(my_agent,agent_orn,sensors_orn):
     my_agent_state.sensor_states["left_rgb_sensor"].rotation = sensors_orn[0]
     my_agent_state.sensor_states["right_rgb_sensor"].rotation = sensors_orn[1]
     my_agent_state.sensor_states["depth_sensor"].rotation = sensors_orn[2]
-    my_agent.set_state(my_agent_state)
+    my_agent.set_state(my_agent_state,infer_sensor_states=False)
     return
 
 
@@ -134,7 +134,7 @@ def rotate_agent_and_sensors(my_agent, my_rotation):
         my_agent_state.sensor_states["right_rgb_sensor"].rotation*my_rotation
     my_agent_state.sensor_states["depth_sensor"].rotation = \
         my_agent_state.sensor_states["depth_sensor"].rotation*my_rotation
-    my_agent.set_state(my_agent_state)
+    my_agent.set_state(my_agent_state,infer_sensor_states=False)
     return
 
 
@@ -156,7 +156,7 @@ def rotate_sensors(my_agent, rotations):
         my_agent_state.sensor_states["right_rgb_sensor"].rotation * rotations[1]
     my_agent_state.sensor_states["depth_sensor"].rotation = \
         my_agent_state.sensor_states["depth_sensor"].rotation * rotations[2]
-    my_agent.set_state(my_agent_state)
+    my_agent.set_state(my_agent_state,infer_sensor_states=False)
 
     return
 
@@ -174,7 +174,7 @@ def calculate_sensor_rotations_habitat_frame(my_agent, rotations):
     my_agent_state.sensor_states["left_rgb_sensor"].rotation = inv_R * rotations[0]
     my_agent_state.sensor_states["right_rgb_sensor"].rotation = inv_R * rotations[1]
     my_agent_state.sensor_states["depth_sensor"].rotation = inv_R * rotations[2]
-    my_agent.set_state(my_agent_state)
+    my_agent.set_state(my_agent_state,infer_sensor_states=False)
     return
 
 
@@ -237,11 +237,11 @@ if __name__ == "__main__":
     print("Initial RGB Sensor orientation = {}".format(sensors_orn["right_rgb_sensor"].rotation))
     print("Initial Sensor orientation = {}".format(sensors_orn["depth_sensor"].rotation))
     j=0
-    for i in list(range(9)):
+    for i in list(range(1,9)):
         rot_v = [0.0, i*np.pi/4.0, 0.0]
         d = quaternion.from_rotation_vector([0.0, i*np.pi/4.0, 0.0])
-        rotate_agent_and_sensors(new_agent, d)
-        #rotate_sensors(new_agent, [d,d,d])
+        #rotate_agent_and_sensors(new_agent, d)
+        rotate_sensors(new_agent, [d,d,d])
         stereo_image, depth_image = get_sensor_observations(new_sim)
         cv2.imshow("stereo_pair", stereo_image)
         cv2.imshow("depth", depth_image)
