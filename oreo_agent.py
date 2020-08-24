@@ -58,7 +58,7 @@ def create_sensor(orientation=[0.0, 0.0, 0.0], position=[0.0, 0.0, 0.0], sensor_
     return new_sensor
 
 def setup_sim_and_sensors():
-    left_rgb_sensor = create_sensor(orientation=[0.0, 0.7853982, 0.0], position=[eye_seperation / 2, 0, 0], sensor_uuid="left_rgb_sensor")
+    left_rgb_sensor = create_sensor(position=[eye_seperation / 2, 0, 0], sensor_uuid="left_rgb_sensor")
     right_rgb_sensor = create_sensor(position=[-eye_seperation / 2, 0, 0], sensor_uuid="right_rgb_sensor")
     depth_sensor = create_sensor(sensor_uuid="depth_sensor", camera_type="D")
 
@@ -94,85 +94,53 @@ def get_agent_sensor_orientations(my_agent):
     return agent_orientation, sensors_orientation
 
 
-def set_agent_sensor_orientations(my_agent,agent_orn,sensors_orn):
+def rotate_sensor_wrt_stationary_agent_frame(my_agent, sensors_rotation):
     """
-    set_agent_sensor_orientation updates the values of the agent and its sensors in habitatai.
-    It does not manage the relative rotations between the agent and the sensor.
-    The orientation of the sensor will be respect to the habitat frame.
+    The sensors_rotations are specified with respect to the agent frame.
+    This function sets the sensors orientation in habitat  w.r.t. to habitat frame.
+    The agent is not moving or changing orientation.
+    This is similar to left and right eye movements of OREO with respect to the frame of the skull.
     :param my_agent: agent object
-    :param agent_orn: quaternion - rotation of the agent frame wrt habitat frame
-    :param sensors_orn: list of quaternions - rotation of the sensors with respect to habitat frame
+    :param sensors_rotation: list of quaternions - rotation of the sensors with respect to agent frame
     :return: nothing
     """
 
     my_agent_state = my_agent.get_state()
-    my_agent_state.rotation = agent_orn     # agent orientation will have no impact on the set sensor orientations
-    my_agent_state.sensor_states["left_rgb_sensor"].rotation = sensors_orn[0]
-    my_agent_state.sensor_states["right_rgb_sensor"].rotation = sensors_orn[1]
-    my_agent_state.sensor_states["depth_sensor"].rotation = sensors_orn[2]
-    my_agent.set_state(my_agent_state)
+    agent_orn = my_agent_state.rotation
+    my_agent_state.sensor_states["left_rgb_sensor"].rotation = agent_orn*sensors_rotation[0]
+    my_agent_state.sensor_states["right_rgb_sensor"].rotation = agent_orn*sensors_rotation[1]
+    my_agent_state.sensor_states["depth_sensor"].rotation = agent_orn*sensors_rotation[2]
+    my_agent.set_state(my_agent_state, infer_sensor_states=False)
     return
 
 
-def rotate_agent_and_sensors(my_agent, my_rotation):
+def move_and_rotate_agent(my_agent, my_rotation, move=[0,0,0.0,0.0]):
     """
-    Rotate the sensors and the agent by a given rotation (quaternion) with respect to the agent's current frame.
-    This will correspond to head/neck movement of oreo.
+    The agent has a translation and rotation. The sensor orientation and position wrt to habitat changes due to it.
+    sensors does not change their orientation with respect to agent frame
     :param my_agent: agent object
-    :param my_rotation: quaternion
-    :return: nothing
+    :param my_rotation: quaternion with respect to habitat frame
+    :param move: in habitat frame [x,y,z]
+    :return:
     """
 
     my_agent_state = my_agent.get_state()
-    # quaternion multiplication order = rotation of current_frame x new rotation with respect to current frame
-    my_agent_state.rotation = my_agent_state.rotation*my_rotation
-    my_agent_state.sensor_states["left_rgb_sensor"].rotation = \
-        my_agent_state.sensor_states["left_rgb_sensor"].rotation*my_rotation
-    my_agent_state.sensor_states["right_rgb_sensor"].rotation = \
-        my_agent_state.sensor_states["right_rgb_sensor"].rotation*my_rotation
-    my_agent_state.sensor_states["depth_sensor"].rotation = \
-        my_agent_state.sensor_states["depth_sensor"].rotation*my_rotation
-    my_agent.set_state(my_agent_state)
-    return
-
-
-def rotate_sensors(my_agent, rotations):
-    """
-    rotates the sensors with respect to the agent frame (not the habitat frame).
-    rotations: list of quaternions for sensors in this order [left, right, depth]
-    When no rotation is desired for a sensor pass np.quaternion(1, 0, 0, 0) while calling rotate_sensors
-    :param my_agent: agent object
-    :param rotations: a list of rotations corresponding to [left, right and depth] in quaternions
-    :return: nothing
-    """
-
-    my_agent_state = my_agent.get_state()
+    r_inverse = my_agent_state.rotation.inverse()
+    my_agent_state.rotation = my_rotation
 
     my_agent_state.sensor_states["left_rgb_sensor"].rotation = \
-        my_agent_state.sensor_states["left_rgb_sensor"].rotation * rotations[0]
+        my_rotation*(r_inverse*my_agent_state.sensor_states["left_rgb_sensor"].rotation)
     my_agent_state.sensor_states["right_rgb_sensor"].rotation = \
-        my_agent_state.sensor_states["right_rgb_sensor"].rotation * rotations[1]
+        my_rotation*(r_inverse*my_agent_state.sensor_states["right_rgb_sensor"].rotation)
     my_agent_state.sensor_states["depth_sensor"].rotation = \
-        my_agent_state.sensor_states["depth_sensor"].rotation * rotations[2]
-    my_agent.set_state(my_agent_state)
+        my_rotation*(r_inverse*my_agent_state.sensor_states["depth_sensor"].rotation)
 
-    return
-
-
-def calculate_sensor_rotations_habitat_frame(my_agent, rotations):
-    """
-    The sensor rotations are wrt to habitat and they will be converted wrt to agent frame
-    :param my_agent: agent object
-    :param rotations: A list of quaternions for sensor rotations [left, right, depth]
-    :return: nothing
-    """
-
-    my_agent_state = my_agent.get_state()
-    inv_R = my_agent_state.rotation.inv()
-    my_agent_state.sensor_states["left_rgb_sensor"].rotation = inv_R * rotations[0]
-    my_agent_state.sensor_states["right_rgb_sensor"].rotation = inv_R * rotations[1]
-    my_agent_state.sensor_states["depth_sensor"].rotation = inv_R * rotations[2]
-    my_agent.set_state(my_agent_state)
+    if move != [0.0,0.0,0.0]:
+        # Add code to determine the absolute position of the sensors w.r.t. habitat frame.
+        # compose 3 - H1new*H1_inv*H3, before change of agent pose: H3 - habitat to sensor , H1 is habitat to Agent
+        # H1new is after change of agent pose.
+        pass
+    my_agent.set_state(my_agent_state, infer_sensor_states=False)
     return
 
 
@@ -238,8 +206,8 @@ if __name__ == "__main__":
     for i in list(range(9)):
         rot_v = [0.0, i*np.pi/4.0, 0.0]
         d = quaternion.from_rotation_vector([0.0, i*np.pi/4.0, 0.0])
-        rotate_agent_and_sensors(new_agent, d)
-        #rotate_sensors(new_agent, [d,d,d])
+        #rotate_sensor_wrt_stationary_agent_frame(new_agent, [d,d,d])
+        move_and_rotate_agent(new_agent,d,move=[1,1,1])
         stereo_image, depth_image = get_sensor_observations(new_sim)
         cv2.imshow("stereo_pair", stereo_image)
         cv2.imshow("depth", depth_image)

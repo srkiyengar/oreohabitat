@@ -11,7 +11,8 @@ from typing import Any, Dict, List, Union
 # Whenever a quaternion is specified it is in numpy quaternion convention
 
 import attr
-eye_seperation = 0.058
+#eye_seperation = 0.058
+eye_seperation = 0.0
 
 @attr.s(auto_attribs=True, slots=True)
 class SixDOFPose(object):
@@ -36,7 +37,8 @@ def create_sensor(orientation=[0.0, 0.0, 0.0], position=[0.0, 0.0, 0.0], sensor_
                   sensor_uuid="my_sensor", camera_type="C"):
     """
 
-    :param orientation: Axis Angle representation 3 values and describes the rotation with respect to agent
+    :param orientation: Axis Angle representation 3 values and describes the rotation with respect to Habitat frame
+    NOT agent frame
     :param position: in meters x - distance from the ground y - right of the agent, z is up
     :param sensor_resolution: w has to equal to h for foveation (Ryan makes this assumption for shader)
     :param sensor_uuid: The identifier that will be used to refer to the sensor
@@ -83,6 +85,35 @@ def setup_sim_and_sensors():
     new_sim = habitat_sim.Simulator(new_Configuration)
     return new_sim, default_agent_id
 
+def test_agent_sensor_orientations(my_agent):
+
+    my_agent_state = my_agent.get_state()
+    agent_orientation = my_agent_state.rotation
+    agent_position = my_agent_state.position
+    sensors_orientation = my_agent_state.sensor_states
+    my_agent_state.rotation = quaternion.from_rotation_vector([0.0, np.pi/8, 0.0])
+    my_agent_state.position = [10.0,5.0,3.0]
+    my_agent_state.sensor_states["left_rgb_sensor"].rotation = quaternion.from_rotation_vector([0.0, -np.pi/8, 0.0])
+    my_agent_state.sensor_states["right_rgb_sensor"].rotation = quaternion.from_rotation_vector([0.0, -np.pi / 8, 0.0])
+    my_agent_state.sensor_states["depth_sensor"].rotation = quaternion.from_rotation_vector([0.0, -np.pi / 8, 0.0])
+
+    d = quat_rotate_vector(
+        my_agent_state.rotation.inverse(), agent_position - my_agent_state.position
+    )
+
+    r = my_agent_state.rotation.inverse()*my_agent_state.sensor_states["left_rgb_sensor"].rotation
+    my_agent.set_state(my_agent_state, infer_sensor_states=False)
+
+    my_agent_state = my_agent.get_state()
+    agent_orientation = my_agent_state.rotation
+    sensors_orientation = my_agent_state.sensor_states
+    return
+
+def new_func():
+
+    my_quat = quaternion.from_rotation_vector([0.0, np.pi/8, 0.0])
+    vpos = np.array([0.0,0.0,0.0])
+    pass
 
 def get_agent_sensor_orientations(my_agent):
     """
@@ -235,6 +266,10 @@ if __name__ == "__main__":
     print("Initial Left RGB Sensor orientation = {}".format(sensors_orn["left_rgb_sensor"].rotation))
     print("Initial RGB Sensor orientation = {}".format(sensors_orn["right_rgb_sensor"].rotation))
     print("Initial Sensor orientation = {}".format(sensors_orn["depth_sensor"].rotation))
+
+    test_agent_sensor_orientations(new_agent)
+
+
     j=0
     for i in list(range(1,9)):
         rot_v = [0.0, i*np.pi/4.0, 0.0]
