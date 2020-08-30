@@ -427,20 +427,7 @@ class Oreo_Robot(object):
             else:
                 print(" No collision".format(pos))
 
-    def compute_IK_for_actuators(self, uvector):
-        v1 = np.array(uvector)
-        v2 = np.array([1.0, 0.0, 0.0])
-        # my_axis is v1 cross v2
-        my_axis = np.array([0.0, -uvector[2], uvector[1]])
-        my_angle = np.arccos(np.dot(v1, v2))
-        my_axis_angle = my_angle * my_axis
-        my_rot_quat = (quaternion.as_float_array(quaternion.from_rotation_vector(my_axis_angle))).tolist()
-        quat_pybullet = my_rot_quat[1:]
-        quat_pybullet.append(my_rot_quat[0])
-        idx1 = self.jointDict["left_eye_joint"]
-        my_joints = p.calculateInverseKinematics(self.linkage, idx1, self.initPosOrn[idx1][self.POS_IDX],
-                                                 quat_pybullet)
-        return my_joints
+
 
         # ****
 
@@ -1088,6 +1075,23 @@ class Oreo_Robot(object):
             print("Input  Right Eye - Left {} Right {}".format(xr[i], yr[i]))
             print("Output Right Eye - Left {} Right {}".format(left_actuator_righteye, right_actuator_righteye))
             print("---------------------------------------------------")
+
+    def compute_IK_for_actuators(self, uvector, link_name="left_eye_joint"):
+        v1 = np.array(uvector)
+        v2 = np.array([1.0, 0.0, 0.0])
+        # my_axis is v2 cross v1
+        my_axis = np.cross(v2,v1)
+        my_axis = my_axis/np.linalg.norm(my_axis)
+        my_angle = np.arccos(np.dot(v1, v2))
+        my_axis_angle = my_angle * my_axis
+        my_rot_quat = (quaternion.as_float_array(quaternion.from_rotation_vector(my_axis_angle))).tolist()
+        quat_pybullet = my_rot_quat[1:]
+        quat_pybullet.append(my_rot_quat[0])
+        idx1 = self.jointDict[link_name]
+        pos = list(self.initPosOrn[idx1][self.POS_IDX])
+        #quat_pybullet = [0.0,0.0,0.0871557,0.996147]
+        my_joints = p.calculateInverseKinematics(self.linkage, idx1, pos, quat_pybullet)
+        return my_joints
 
     # Initialize robot model
     def InitModel(self):

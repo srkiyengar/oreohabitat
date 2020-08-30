@@ -61,7 +61,6 @@ def create_sensor(orientation=[0.0, 0.0, 0.0], position=[0.0, 0.0, 0.0], sensor_
 
 
 def setup_sim_and_sensors():
-    #
     left_rgb_sensor = create_sensor(position=[eye_seperation / 2, 0, 0], sensor_uuid="left_rgb_sensor")
     right_rgb_sensor = create_sensor(position=[-eye_seperation / 2, 0, 0], sensor_uuid="right_rgb_sensor")
     depth_sensor = create_sensor(sensor_uuid="depth_sensor", camera_type="D")
@@ -341,20 +340,14 @@ def get_sensor_observations(oreo_sim):
 
     return stereo_pair, depth
 
-'''
-Habitatai coordinate frame (x+ive,y+ive,z -ive) is Pybullet's frame (y-ive, z+ive, x+ive)
-A point (x,y,z) in Habitat's frame when rotated by R will provide it in Pybullet's frame
-It is the rotation matrix from Pybullet to Habitatai  row 0 [0 0 -1], row 1 [-1 0 0], row 2 [0,1,0]]
-Habitat to PyBullet R_inverse row 0 = [0.-1,0], row 1 = [0,0,1], row 2 = [-1,0,0]
-Given a point in Habitat, we do a rotation to pybullet, determine if there is collision and get 
-the orientation of the eyes. This orientation has to be rotated using R_inverse.
-'''
+
+# Rotation from Pybullet to Habitatai
 
 
 def rotatation_matrix_from_Pybullet_to_Habitat_frame():
     R = np.zeros((3, 3))
-    R[0, 2] = -1
-    R[1, 0] = -1
+    R[0, 2] = 1
+    R[1, 0] = 1
     R[2, 1] = 1
 
     quat = quaternion.from_rotation_matrix(R)  # w, x, y, z numpy quaternion order
@@ -365,9 +358,9 @@ def rotatation_matrix_from_Pybullet_to_Habitat_frame():
 
 def rotatation_matrix_from_Habitat_to_Pybullet_frame():
     R = np.zeros((3, 3))
-    R[0, 1] = -1
+    R[0, 1] = 1
     R[1, 2] = 1
-    R[2, 0] = -1
+    R[2, 0] = 1
 
     quat = quaternion.from_rotation_matrix(R)  # w, x, y, z numpy quaternion order
     return R, quat
@@ -375,10 +368,6 @@ def rotatation_matrix_from_Habitat_to_Pybullet_frame():
 
 if __name__ == "__main__":
     print("The system version is {}".format(sys.version))
-    s1 = habitat_sim.geo.UP
-    s2 = habitat_sim.geo.LEFT
-    s3 = habitat_sim.geo.FRONT
-    s4 = habitat_sim.geo.RIGHT
 
     new_sim, agent_id = setup_sim_and_sensors()
     new_agent = new_sim.get_agent(agent_id)
@@ -391,26 +380,9 @@ if __name__ == "__main__":
     # get and save agent state
     # Not done
     init_pos = move = [0.9539339, 0.1917877, 12.163067]
-    N = 16  # number of moves or rotations
+    N = 8  # number of moves or rotations
     j = 0
-    d = quaternion.from_rotation_vector([0.0, 0.0, 0.0])
-    for i in list(range(N)):
-        move = [0.1*i, 0.0, 0.0]
-        relative_move_and_rotate_agent(new_agent, d, move)
-        stereo_image, depth_image = get_sensor_observations(new_sim)
-        cv2.imshow("stereo_pair", stereo_image)
-        cv2.imshow("depth", depth_image)
-        k = cv2.waitKey(0)
-        if k == ord('q'):
-            break
-        else:
-            j += 1
-            print("{})Key input {}".format(j, k))
-
-    cv2.destroyAllWindows()
-
     # Testing move and rotate agent
-    j = 0
     for i in list(range(N)):
         d = quaternion.from_rotation_vector([0.0, i * np.pi / N, 0.0])
         move_and_rotate_agent(new_agent, d,
@@ -429,7 +401,7 @@ if __name__ == "__main__":
     j = 0
     # restore original agent state
     # Testing relative move and rotate agent
-    d = quaternion.from_rotation_vector([0.0, np.pi/N, 0.0])
+    d = quaternion.from_rotation_vector([0.0, np.pi / N, 0.0])
     for i in list(range(N)):
         move = [0.1 * i, 0.0, 0.0]
         relative_move_and_rotate_agent(new_agent, d, move)

@@ -5,13 +5,35 @@ import sys
 import numpy as np
 import cv2
 import matplotlib.pyplot as plt
+import pybullet as p
 
 pos_list = []
-# Habitatai coordinate frame (z+ive, y+ive, xive) is Pybullet's frame (x+ive,z+ive, y+ive)
-# The rotation matrix R to express a point (x,y,z) in Habitat's frame in Pybullet's frame
-# It is the rotation matrix from Pybullet to Habitatai  row 1 [0 0 1], row 2 [1 0 0], row 3 [0,1,0]]
-# Given a point in Habitat, we do a rotation to pybullet, determine if there is collision, find out
-# the orientation of the eyes. This orientation has to be rotated using R_inverse.
+
+
+def test_IK(this_robot):
+    link_name = "left_eye_joint"
+    idx1 = this_robot.jointDict[link_name]
+    pos = list(this_robot.initPosOrn[idx1][this_robot.POS_IDX])
+    quat1_pybullet = [0.0,0.0,0.0871557,0.9961947]  # axis (0,0,1) angle 10 degrees
+    my_joints_pos1 = p.calculateInverseKinematics(this_robot.linkage, idx1, pos, quat1_pybullet)
+
+    quat2_pybullet = [0.0, 0.0, 0.1736482, 0.9848078]  # axis (0,0,1) angle 30 degrees
+    my_joints_pos2 = p.calculateInverseKinematics(this_robot.linkage, idx1, pos, quat2_pybullet)
+
+    quat3_pybullet = [0.0, 0.0, 0.258819, 0.9659258]  # axis (0,0,1) angle 30 degrees
+    my_joints_pos3 = p.calculateInverseKinematics(this_robot.linkage, idx1, pos, quat3_pybullet)
+
+    return [my_joints_pos1,my_joints_pos2,my_joints_pos3]
+
+
+'''
+Habitatai coordinate frame (x+ive,y+ive,z -ive) is Pybullet's frame (y-ive, z+ive, x+ive)
+A point (x,y,z) in Habitat's frame when rotated by R will provide it in Pybullet's frame
+It is the rotation matrix from Pybullet to Habitatai  row 0 [0 0 -1], row 1 [-1 0 0], row 2 [0,1,0]]
+Habitat to PyBullet R_inverse row 0 = [0.-1,0], row 1 = [0,0,1], row 2 = [-1,0,0]
+Given a point in Habitat, we do a rotation to pybullet, determine if there is collision and get 
+the orientation of the eyes. This orientation has to be rotated using R_inverse.
+'''
 
 def move_in_yaw(pitch):
     yaw = np.linspace(-25, 25, 50)
@@ -37,7 +59,8 @@ def generate_interpolated_actuator_values():
     righteye_l_outside_range = 0
     righteye_r_outside_range = 0
 
-    yaw = np.linspace(-25, 25, 100)
+    #yaw = np.linspace(-25, 25, 100)
+    yaw = np.linspace(-10, 0, 100)
     pitch = np.linspace(75,125,100)
 
     for i in pitch:
@@ -68,12 +91,12 @@ def generate_interpolated_actuator_values():
             else:
                 print("Interpolator functions not computed")
                 return 0,
-    print("Bad Actuator values for LeftEye Left{} Right{}  RightEye Left{} Right".format(
+    print("Bad Actuator values for LeftEye Left = {} Right = {}  RightEye Left = {} Right = {}".format(
         lefteye_l_outside_range, lefteye_r_outside_range, righteye_l_outside_range, righteye_r_outside_range
     ))
     return 1,lefteye_l, lefteye_r, righteye_l, righteye_r
 
-def plot_interpolated(interp_val):
+def plot_interpolated_lefteye(interp_val):
     if interp_val[0] == 1:
         lefteye_l_interp = np.array(interp_val[1])
 
@@ -82,25 +105,76 @@ def plot_interpolated(interp_val):
         left_a = lefteye_l_interp[:, 2]
         fig = plt.figure()
         ax1 = fig.add_subplot(111, projection='3d')
-        ax1.scatter(yaw, pit, left_a, 'z', c='coral', )
+        ax1.scatter(yaw, pit, left_a, 'z', c='coral')
         ax1.set_xlabel('Yaw in degrees')
         ax1.set_ylabel('Pitch in degrees')
         ax1.set_zlabel('Left Actuator - coral')
-        ax1.set_title('Left Eye Left Actuator - Normal')
+        ax1.set_title('Left Eye Left Actuator')
 
         lefteye_r_interp = np.array(interp_val[2])
         pit = lefteye_r_interp[:, 0]
         yaw = lefteye_r_interp[:, 1]
-        left_a = lefteye_r_interp[:, 2]
+        right_a = lefteye_r_interp[:, 2]
         fig = plt.figure()
         ax1 = fig.add_subplot(111, projection='3d')
-        ax1.scatter(yaw, pit, left_a, 'z', c='blue', )
+        ax1.scatter(yaw, pit, right_a, 'z', c='blue')
         ax1.set_xlabel('Yaw in degrees')
         ax1.set_ylabel('Pitch in degrees')
         ax1.set_zlabel('Left Actuator - Blue')
         ax1.set_title('Left Eye Right Actuator')
 
     pass
+def plot_interpolated_righteye(interp_val):
+    if interp_val[0] == 1:
+        righteye_l_interp = np.array(interp_val[1])
+
+        pit = righteye_l_interp[:, 0]
+        yaw = righteye_l_interp[:, 1]
+        left_a = righteye_l_interp[:, 2]
+        fig = plt.figure()
+        ax1 = fig.add_subplot(111, projection='3d')
+        ax1.scatter(yaw, pit, left_a, 'z', c='red')
+        ax1.set_xlabel('Yaw in degrees')
+        ax1.set_ylabel('Pitch in degrees')
+        ax1.set_zlabel('Left Actuator - red')
+        ax1.set_title('Right Eye Left Actuator')
+
+        righteye_r_interp = np.array(interp_val[2])
+        pit = righteye_r_interp[:, 0]
+        yaw = righteye_r_interp[:, 1]
+        right_a = righteye_r_interp[:, 2]
+        fig = plt.figure()
+        ax1 = fig.add_subplot(111, projection='3d')
+        ax1.scatter(yaw, pit, right_a, 'z', c='green')
+        ax1.set_xlabel('Yaw in degrees')
+        ax1.set_ylabel('Pitch in degrees')
+        ax1.set_zlabel('Left Actuator - green')
+        ax1.set_title('Right Eye Right Actuator')
+
+
+def test_joint_info (myrobot):
+    num_of_joints = myrobot.numJoints
+    print("Number of Joints = {}".format(num_of_joints))
+    print("Joint Dictionary {}\n".format(myrobot.jointDict))
+    for i in range(num_of_joints):
+        jointInfo = p.getJointInfo(myrobot.linkage, i)
+        print("****** Joint index {} Joint name = {} Link name {}".format(jointInfo[0],
+                                    jointInfo[1].decode('UTF-8'), jointInfo[12].decode('UTF-8')))
+        print("Joint type is {}".format(jointInfo[2]))
+        print("Joint Lower Limit {} Upper Limit {}".format(jointInfo[8],jointInfo[9]))
+        print("Position wrt to previous frame {}".format(jointInfo[14]))
+        print("Orientation wrt to previous frame {}".format(jointInfo[15]))
+
+        state = p.getLinkState(myrobot.linkage, i, computeForwardKinematics=True)
+        print("Position {} Orientation {}".format(state[4],state[5]))
+
+        print("XXXXXXX End of joint information for {}\n".format(jointInfo[1].decode('UTF-8')))
+
+    new_direction = np.array([0.5,0.5,0.0])
+    new_direction = new_direction/np.linalg.norm(new_direction)
+    myrobot.compute_IK_for_actuators(new_direction)
+
+    return
 
 if __name__ == "__main__":
     robot = oreo.Oreo_Robot(True, True, "/home/oreo/Documents/oreo_sim/oreo/sim", "assembly.urdf", True)
@@ -109,24 +183,8 @@ if __name__ == "__main__":
     robot.InitManCtrl()
     robot.RegKeyEvent(['c', 'q', 'p'])
 
-    '''
-    my_points = [[0.4, 0.0, 0.0], [0.5, 0.0, 0.0], [0.7, 0.0, 0.0], \
-                 [0.4, 0.1, 0.0], [0.5, 0.1, 0.0], [0.7, 0.1, 0.0], \
-                 [0.4, 0.5, 0.3], [0.5, 0.5, 0.3], [0.7, 0.5, 0.3], \
-                 [0.4, -0.5, 0.3], [0.5, -0.5, 0.3], [0.7, -0.5, 0.3], \
-                 [0.4, 0.5, -0.3], [0.5, 0.5, -0.3], [0.7, 0.5, -0.3], \
-                 [0.4, -0.5, -0.3], [0.5, -0.5, -0.3], [0.7, -0.5, -0.3]]
-
-    point_list = []
-    for p in my_points:
-        my_angles = robot.compute_yaw_pitch_for_given_point(p)
-        if oreo.is_within_limits(my_angles):
-            temp = p.copy()
-            temp.append(my_angles)
-            point_list.append(temp)
-    '''
-
-    l = 0
+    #test_joint_info(robot)
+    #my_results = test_IK(robot)
     #read table data from pickle file
     a = robot.read_oreo_yaw_pitch_actuator_data()
     if a == 0:
@@ -142,7 +200,8 @@ if __name__ == "__main__":
     #robot.plot_interpolator_functions()
     #robot.compare_actuator_values()
     interp_val = generate_interpolated_actuator_values()
-    plot_interpolated(interp_val)
+    plot_interpolated_lefteye(interp_val)
+    plot_interpolated_righteye(interp_val)
     move_in_yaw(90.0)
 
 
@@ -150,12 +209,8 @@ if __name__ == "__main__":
         #robot.UpdManCtrl()
         #robot.UpdManCtrl_new()
         #robot.UpdManCtrl_test()
-        if l < 1 :
-            for p in pos_list:
-                robot.move_eyes_to_pos(p)
-                time.sleep(1.0)
-            l +=1
-
+        for i in pos_list:
+            robot.move_eyes_to_pos(i)
         k = cv2.waitKey(0)
         if k == ord('q'):
             break
