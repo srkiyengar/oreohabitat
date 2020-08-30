@@ -284,6 +284,36 @@ def relative_move_and_rotate_agent(my_agent, rel_rotation, rel_move=[0.0, 0.0, 0
     return
 
 
+'''
+Habitatai coordinate frame (x+ive,y+ive,z -ive) is Pybullet's frame (y-ive, z+ive, x+ive)
+Rotation from Habitat to PyBullet R row 0 = [0.-1,0], row 1 = [0,0,1], row 2 = [-1,0,0]
+Homogenous transformation can be obtained using the position of the agent.
+Rotation (Inverse) from Pybullet to Habitatai row 0 = [0 0 -1], row 1 = [-1 0 0], row 2 = [0,1,0]]
+Given a point in Habitat, we do a rotation to pybullet, determine if there is collision and get 
+the orientation of the eyes. This orientation has to be rotated back to view the scene in Habitat.
+
+'''
+
+def rotatation_matrix_from_Habitat_to_Pybullet():
+    R = np.zeros((3, 3))
+    R[0, 1] = -1
+    R[1, 2] = 1
+    R[2, 0] = -1
+
+    quat = quaternion.from_rotation_matrix(R)  # w, x, y, z numpy quaternion order
+    return R, quat
+
+
+def rotatation_matrix_from_Pybullet_to_Habitat():
+    R = np.zeros((3, 3))
+    R[0, 2] = -1
+    R[1, 0] = -1
+    R[2, 1] = 1
+
+    quat = quaternion.from_rotation_matrix(R)  # w, x, y, z numpy quaternion order
+    return R, quat
+
+
 def homogenous_transform(R, vect):
     '''
     :param R: 3x3 matrix
@@ -341,39 +371,9 @@ def get_sensor_observations(oreo_sim):
 
     return stereo_pair, depth
 
-'''
-Habitatai coordinate frame (x+ive,y+ive,z -ive) is Pybullet's frame (y-ive, z+ive, x+ive)
-A point (x,y,z) in Habitat's frame when rotated by R will provide it in Pybullet's frame
-It is the rotation matrix from Pybullet to Habitatai  row 0 [0 0 -1], row 1 [-1 0 0], row 2 [0,1,0]]
-Habitat to PyBullet R_inverse row 0 = [0.-1,0], row 1 = [0,0,1], row 2 = [-1,0,0]
-Given a point in Habitat, we do a rotation to pybullet, determine if there is collision and get 
-the orientation of the eyes. This orientation has to be rotated using R_inverse.
-'''
-
-
-def rotatation_matrix_from_Pybullet_to_Habitat_frame():
-    R = np.zeros((3, 3))
-    R[0, 2] = -1
-    R[1, 0] = -1
-    R[2, 1] = 1
-
-    quat = quaternion.from_rotation_matrix(R)  # w, x, y, z numpy quaternion order
-    return R, quat
-
-
-# Inverse of the rotation from Pybullet to Habitatai
-
-def rotatation_matrix_from_Habitat_to_Pybullet_frame():
-    R = np.zeros((3, 3))
-    R[0, 1] = -1
-    R[1, 2] = 1
-    R[2, 0] = -1
-
-    quat = quaternion.from_rotation_matrix(R)  # w, x, y, z numpy quaternion order
-    return R, quat
-
 
 if __name__ == "__main__":
+
     print("The system version is {}".format(sys.version))
     s1 = habitat_sim.geo.UP
     s2 = habitat_sim.geo.LEFT

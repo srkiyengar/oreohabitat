@@ -344,28 +344,6 @@ def get_sensor_observations(oreo_sim):
 # Rotation from Pybullet to Habitatai
 
 
-def rotatation_matrix_from_Pybullet_to_Habitat_frame():
-    R = np.zeros((3, 3))
-    R[0, 2] = 1
-    R[1, 0] = 1
-    R[2, 1] = 1
-
-    quat = quaternion.from_rotation_matrix(R)  # w, x, y, z numpy quaternion order
-    return R, quat
-
-
-# Inverse of the rotation from Pybullet to Habitatai
-
-def rotatation_matrix_from_Habitat_to_Pybullet_frame():
-    R = np.zeros((3, 3))
-    R[0, 1] = 1
-    R[1, 2] = 1
-    R[2, 0] = 1
-
-    quat = quaternion.from_rotation_matrix(R)  # w, x, y, z numpy quaternion order
-    return R, quat
-
-
 if __name__ == "__main__":
     print("The system version is {}".format(sys.version))
 
