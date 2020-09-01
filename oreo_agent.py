@@ -471,21 +471,21 @@ def look_around(new_agent, my_sim):
             stereo_image, depth_image = get_sensor_observations(my_sim)
             cv2.imshow("stereo_pair", stereo_image)
             cv2.imshow("depth", depth_image)
-        elif k == ord('j'):  # away from the scene
+        elif k == ord('b'):  # away from the scene
             d = quaternion.from_rotation_vector([0.0, 0.0, 0.0])
             move = [0.0, 0.0, delta_move]
             relative_move_and_rotate_agent(new_agent, d, move)
             stereo_image, depth_image = get_sensor_observations(my_sim)
             cv2.imshow("stereo_pair", stereo_image)
             cv2.imshow("depth", depth_image)
-        elif k == ord('k'):  # viewing to left side
+        elif k == ord('j'):  # viewing to left side
             d = quaternion.from_rotation_vector([0.0, 0.0, 0.0])
             move = [delta_move, 0.0, 0.0]
             relative_move_and_rotate_agent(new_agent, d, move)
             stereo_image, depth_image = get_sensor_observations(my_sim)
             cv2.imshow("stereo_pair", stereo_image)
             cv2.imshow("depth", depth_image)
-        elif k == ord('h'):  # viewing to the right
+        elif k == ord('k'):  # viewing to the right
             d = quaternion.from_rotation_vector([0.0, 0.0, 0.0])
             move = [-delta_move, 0.0, 0.0]
             relative_move_and_rotate_agent(new_agent, d, move)
