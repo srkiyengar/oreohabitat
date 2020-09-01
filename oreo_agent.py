@@ -61,7 +61,7 @@ def create_sensor(orientation=[0.0, 0.0, 0.0], position=[0.0, 0.0, 0.0], sensor_
 
 
 def setup_sim_and_sensors():
-    #
+    # left sensor corresponds to left eye which is on the right side
     left_rgb_sensor = create_sensor(position=[eye_seperation / 2, 0, 0], sensor_uuid="left_rgb_sensor")
     right_rgb_sensor = create_sensor(position=[-eye_seperation / 2, 0, 0], sensor_uuid="right_rgb_sensor")
     depth_sensor = create_sensor(sensor_uuid="depth_sensor", camera_type="D")
@@ -123,6 +123,27 @@ def rotate_sensor_wrt_stationary_agent_frame(my_agent, sensors_rotation):
     my_agent_state.sensor_states["depth_sensor"].rotation = agent_orn * sensors_rotation[2]
     my_agent.set_state(my_agent_state, infer_sensor_states=False)
     return
+
+
+def verge_sensors(my_angle, my_agent, verge):      #If verge is 'c' it will converge if it is 'd' it will diverge
+
+    if verge == 'c':
+        left_sensor = quaternion.from_rotation_vector([0.0, my_angle, 0.0])
+        right_sensor = quaternion.from_rotation_vector([0.0, -my_angle, 0.0])
+    elif verge == 'd':
+        left_sensor = quaternion.from_rotation_vector([0.0, -my_angle, 0.0])
+        right_sensor = quaternion.from_rotation_vector([0.0, my_angle, 0.0])
+    else:
+        return
+    depth_sensor = quaternion.from_rotation_vector([0.0, 0.0, 0.0])
+    my_agent_state = my_agent.get_state()
+    r1_inverse = my_agent_state.rotation.inverse()
+    left_sensor = (r1_inverse*my_agent_state.sensor_states["left_rgb_sensor"].rotation)*left_sensor
+    right_sensor = (r1_inverse*my_agent_state.sensor_states["right_rgb_sensor"].rotation)*right_sensor
+    sensor_rot = [left_sensor, right_sensor, depth_sensor]
+    rotate_sensor_wrt_stationary_agent_frame(my_agent,sensor_rot)
+    return
+
 
 
 def rotate_agent(my_agent, my_rotation):
@@ -434,6 +455,7 @@ def test_oreo_agent(new_agent, my_sim):
     cv2.destroyAllWindows()
 
 def look_around(new_agent, my_sim):
+    original_state = new_agent.get_state()
     stereo_image, depth_image = get_sensor_observations(my_sim)
     cv2.imshow("stereo_pair", stereo_image)
     cv2.imshow("depth", depth_image)
@@ -449,21 +471,21 @@ def look_around(new_agent, my_sim):
             stereo_image, depth_image = get_sensor_observations(my_sim)
             cv2.imshow("stereo_pair", stereo_image)
             cv2.imshow("depth", depth_image)
-        elif k == ord('b'):  # away from the scene
+        elif k == ord('j'):  # away from the scene
             d = quaternion.from_rotation_vector([0.0, 0.0, 0.0])
             move = [0.0, 0.0, delta_move]
             relative_move_and_rotate_agent(new_agent, d, move)
             stereo_image, depth_image = get_sensor_observations(my_sim)
             cv2.imshow("stereo_pair", stereo_image)
             cv2.imshow("depth", depth_image)
-        elif k == ord('g'):  # away from the scene
+        elif k == ord('k'):  # viewing to left side
             d = quaternion.from_rotation_vector([0.0, 0.0, 0.0])
             move = [delta_move, 0.0, 0.0]
             relative_move_and_rotate_agent(new_agent, d, move)
             stereo_image, depth_image = get_sensor_observations(my_sim)
             cv2.imshow("stereo_pair", stereo_image)
             cv2.imshow("depth", depth_image)
-        elif k == ord('h'):  # away from the scene
+        elif k == ord('h'):  # viewing to the right
             d = quaternion.from_rotation_vector([0.0, 0.0, 0.0])
             move = [-delta_move, 0.0, 0.0]
             relative_move_and_rotate_agent(new_agent, d, move)
@@ -488,9 +510,24 @@ def look_around(new_agent, my_sim):
             stereo_image, depth_image = get_sensor_observations(my_sim)
             cv2.imshow("stereo_pair", stereo_image)
             cv2.imshow("depth", depth_image)
-        elif k == ord('d'):  # chin down
+        elif k == ord('g'):  # chin down
             d = quaternion.from_rotation_vector([-np.pi / 12, 0.0, 0.0])
             relative_move_and_rotate_agent(new_agent, d)
+            stereo_image, depth_image = get_sensor_observations(my_sim)
+            cv2.imshow("stereo_pair", stereo_image)
+            cv2.imshow("depth", depth_image)
+        elif k == ord('c'):  # converge
+            verge_sensors(np.pi/20,new_agent,'c')
+            stereo_image, depth_image = get_sensor_observations(my_sim)
+            cv2.imshow("stereo_pair", stereo_image)
+            cv2.imshow("depth", depth_image)
+        elif k == ord('d'):  # diverge
+            verge_sensors(np.pi/20,new_agent,'d')
+            stereo_image, depth_image = get_sensor_observations(my_sim)
+            cv2.imshow("stereo_pair", stereo_image)
+            cv2.imshow("depth", depth_image)
+        elif k == ord('n'):
+            new_agent.set_state(original_state)
             stereo_image, depth_image = get_sensor_observations(my_sim)
             cv2.imshow("stereo_pair", stereo_image)
             cv2.imshow("depth", depth_image)
@@ -519,11 +556,6 @@ if __name__ == "__main__":
     # get and save agent state
     # Not done
     #test_oreo_agent(the_agent, the_sim)
-    stereo_image, depth_image = get_sensor_observations(the_sim)
-    cv2.imshow("stereo_pair", stereo_image)
-    cv2.imshow("depth", depth_image)
-    delta_move = 0.1
-    d = quaternion.from_rotation_vector([0.0, 0.0, 0.0])
     look_around(the_agent,the_sim)
 
 
