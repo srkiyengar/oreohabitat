@@ -871,21 +871,21 @@ class Oreo_Robot(object):
 
         return
 
-    def plot_interpolator_functions(self):
-        #left eye
+    def plot_interpolator_datapoints(self):
+
         self.read_oreo_yaw_pitch_actuator_data()
+        # left eye
         my_lefteye_table = np.array(self.left_eye_scan_data)
         x = my_lefteye_table[:, 2]  # all yaw
         y = my_lefteye_table[:, 3]  # all pitch
 
         z_left = []
-        for xi, yi in zip(x, y):
-            zi = self.left_eye_interpolator_left(xi, yi)[0]
-            z_left.append(zi)
         z_right = []
         for xi, yi in zip(x, y):
-            zi = self.left_eye_interpolator_right(xi, yi)[0]
-            z_right.append(zi)
+            zi1 = self.left_eye_interpolator_left(xi, yi)[0]
+            zi2 = self.left_eye_interpolator_right(xi, yi)[0]
+            z_left.append(zi1)
+            z_right.append(zi2)
 
         zpl = []
         zpr = []
@@ -893,7 +893,7 @@ class Oreo_Robot(object):
         yp = []
         i = 0
         for j, k in zip(z_left, z_right):
-            if (-0.05 < j < +0.05) and ((-0.05 < k < +0.05)):
+            if (-0.015 < j < +0.015) and ((-0.015 < k < +0.015)):
                 xp.append(x[i])
                 yp.append(y[i])
                 zpl.append(j)
@@ -921,15 +921,13 @@ class Oreo_Robot(object):
         my_righteye_table = np.array(self.right_eye_scan_data)
         x = my_righteye_table[:, 2]  # all yaw
         y = my_righteye_table[:, 3]  # all pitch
-
         z_left = []
-        for xi, yi in zip(x, y):
-            zi = self.right_eye_interpolator_left(xi, yi)[0]
-            z_left.append(zi)
         z_right = []
         for xi, yi in zip(x, y):
-            zi = self.right_eye_interpolator_right(xi, yi)[0]
-            z_right.append(zi)
+            zi1 = self.right_eye_interpolator_left(xi, yi)[0]
+            z_left.append(zi1)
+            zi2 = self.right_eye_interpolator_right(xi, yi)[0]
+            z_right.append(zi2)
 
         zpl = []
         zpr = []
@@ -937,7 +935,7 @@ class Oreo_Robot(object):
         yp = []
         i = 0
         for j, k in zip(z_left, z_right):
-            if (-0.05 < j < +0.05) and ((-0.05 < k < +0.05)):
+            if (-0.015 < j < +0.015) and ((-0.015 < k < +0.015)):
                 xp.append(x[i])
                 yp.append(y[i])
                 zpl.append(j)

@@ -347,6 +347,7 @@ def get_sensor_observations(oreo_sim):
 if __name__ == "__main__":
     print("The system version is {}".format(sys.version))
 
+
     new_sim, agent_id = setup_sim_and_sensors()
     new_agent = new_sim.get_agent(agent_id)
     agent_orn, agent_pos, sensors_pose = get_agent_sensor_position_orientations(new_agent)

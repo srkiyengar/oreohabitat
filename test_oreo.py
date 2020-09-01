@@ -38,7 +38,7 @@ the orientation of the eyes. This orientation has to be rotated using R_inverse.
 def move_in_yaw(pitch):
     yaw = np.linspace(-25, 25, 50)
     for i in yaw:
-        my_angles =[i,pitch,0.0,pitch]
+        my_angles =[i,pitch,i,pitch]
         actuator_pos = robot.get_actuator_positions_for_a_given_yaw_pitch(my_angles)
         if actuator_pos[0] == 1:
             my_pos = actuator_pos[1:]
@@ -197,12 +197,12 @@ if __name__ == "__main__":
     if b == 0:
         robot.produce_interpolators()
 
-    #robot.plot_interpolator_functions()
+    robot.plot_interpolator_datapoints()
     #robot.compare_actuator_values()
     interp_val = generate_interpolated_actuator_values()
     plot_interpolated_lefteye(interp_val)
     plot_interpolated_righteye(interp_val)
-    move_in_yaw(90.0)
+    move_in_yaw(110.0)
 
 
     while (1):

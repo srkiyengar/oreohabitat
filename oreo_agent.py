@@ -230,9 +230,12 @@ def relative_move_and_rotate_agent(my_agent, rel_rotation, rel_move=[0.0, 0.0, 0
     r1 = my_agent_state.rotation  # rotation from Habitat to Agent wrt Habitat frame
     t1 = my_agent_state.position  # translation from Habitat to Agent wrt Habitat frame
     r1_inverse = my_agent_state.rotation.inverse()  # Inverse of rq
-    my_rotation = r1 * rel_rotation
-    move = t1 + rel_move
-
+    my_rotation = r1 * rel_rotation     # rotation wrt to habitat frame
+    # translation wrt to habitat frame
+    m = np.reshape(np.array(rel_move, dtype=float),(3,1))
+    n = quaternion.as_rotation_matrix(r1)
+    p = n.dot(m)
+    move = (np.reshape(p,(1,3)) + t1)[0]
     my_agent_state.rotation = my_rotation  # new rotation of Agent wrt to Habitat
     if rel_move == [0.0, 0.0, 0.0]:  # only rotations are impacted and not position
         my_agent_state.sensor_states["left_rgb_sensor"].rotation = \
@@ -242,14 +245,14 @@ def relative_move_and_rotate_agent(my_agent, rel_rotation, rel_move=[0.0, 0.0, 0
         my_agent_state.sensor_states["depth_sensor"].rotation = \
             my_rotation * (r1_inverse * my_agent_state.sensor_states["depth_sensor"].rotation)
     else:
-        # h1 is current habitat to Agent homogenous transformation (HT), h1new is habitat to Agent with new one
+        # h1 is current habitat to Agent homogenous transformation (HT), h1new is habitat to Agent with new pos,orn.
         # h3 - habitat to sensor which is h1 or h1new multiplied and agent to the sensor HT
         # Example - h1new(left_rgb)*h1_inv*h3 where h1_inv*h3 provides sensor pose wrt to agent.
         # Import to remember that get agent_state provides position, orientation wrt to habitant
         my_agent_state.position = move
-        h1 = homogenous_transform(quaternion.as_rotation_matrix(r1), list(t1))
+        h1 = homogenous_transform(quaternion.as_rotation_matrix(r1), t1.tolist())
         h1_inv = inverse_homogenous_transform(h1)
-        h1new = homogenous_transform(quaternion.as_rotation_matrix(my_rotation), list(move))
+        h1new = homogenous_transform(quaternion.as_rotation_matrix(my_rotation), move.tolist())
         h3_left_rgb = homogenous_transform(quaternion.as_rotation_matrix(
             my_agent_state.sensor_states["left_rgb_sensor"].rotation),
             list(my_agent_state.sensor_states["left_rgb_sensor"].position))
@@ -300,8 +303,7 @@ def rotatation_matrix_from_Habitat_to_Pybullet():
     R[1, 2] = 1
     R[2, 0] = -1
 
-    quat = quaternion.from_rotation_matrix(R)  # w, x, y, z numpy quaternion order
-    return R, quat
+    return R
 
 
 def rotatation_matrix_from_Pybullet_to_Habitat():
@@ -310,8 +312,7 @@ def rotatation_matrix_from_Pybullet_to_Habitat():
     R[1, 0] = -1
     R[2, 1] = 1
 
-    quat = quaternion.from_rotation_matrix(R)  # w, x, y, z numpy quaternion order
-    return R, quat
+    return R
 
 
 def homogenous_transform(R, vect):
@@ -365,39 +366,25 @@ def get_sensor_observations(oreo_sim):
         rgb_left = rgb_left[..., 0:3][..., ::-1]
     if len(rgb_right.shape) > 2:
         rgb_right = rgb_right[..., 0:3][..., ::-1]
-    depth = np.clip(depth, 0, 10)
+    #depth = np.clip(depth, 0, 10)
     depth /= 10.0
     stereo_pair = np.concatenate([rgb_left, rgb_right], axis=1)
 
     return stereo_pair, depth
 
 
-if __name__ == "__main__":
-
-    print("The system version is {}".format(sys.version))
-    s1 = habitat_sim.geo.UP
-    s2 = habitat_sim.geo.LEFT
-    s3 = habitat_sim.geo.FRONT
-    s4 = habitat_sim.geo.RIGHT
-
-    new_sim, agent_id = setup_sim_and_sensors()
-    new_agent = new_sim.get_agent(agent_id)
-    agent_orn, agent_pos, sensors_pose = get_agent_sensor_position_orientations(new_agent)
-    print("Initial Agent orientation = {}".format(agent_orn))
-    print("Initial Left RGB Sensor orientation = {}".format(sensors_pose["left_rgb_sensor"].rotation))
-    print("Initial RGB Sensor orientation = {}".format(sensors_pose["right_rgb_sensor"].rotation))
-    print("Initial Sensor orientation = {}".format(sensors_pose["depth_sensor"].rotation))
-
-    # get and save agent state
-    # Not done
+def test_oreo_agent(new_agent, my_sim):
     init_pos = move = [0.9539339, 0.1917877, 12.163067]
     N = 16  # number of moves or rotations
     j = 0
     d = quaternion.from_rotation_vector([0.0, 0.0, 0.0])
+
+    original_agent_state = new_agent.get_state()
+
     for i in list(range(N)):
-        move = [0.1*i, 0.0, 0.0]
+        move = [0.1 * i, 0.0, 0.0]
         relative_move_and_rotate_agent(new_agent, d, move)
-        stereo_image, depth_image = get_sensor_observations(new_sim)
+        stereo_image, depth_image = get_sensor_observations(my_sim)
         cv2.imshow("stereo_pair", stereo_image)
         cv2.imshow("depth", depth_image)
         k = cv2.waitKey(0)
@@ -415,7 +402,7 @@ if __name__ == "__main__":
         d = quaternion.from_rotation_vector([0.0, i * np.pi / N, 0.0])
         move_and_rotate_agent(new_agent, d,
                               move=[init_pos[0] + (0.1 * i), init_pos[1] + 0.5, init_pos[2] + 0.0])  # absolute
-        stereo_image, depth_image = get_sensor_observations(new_sim)
+        stereo_image, depth_image = get_sensor_observations(my_sim)
         cv2.imshow("stereo_pair", stereo_image)
         cv2.imshow("depth", depth_image)
         k = cv2.waitKey(0)
@@ -428,12 +415,13 @@ if __name__ == "__main__":
     cv2.destroyAllWindows()
     j = 0
     # restore original agent state
+    new_agent.set_state(original_agent_state)
     # Testing relative move and rotate agent
-    d = quaternion.from_rotation_vector([0.0, np.pi/N, 0.0])
+    d = quaternion.from_rotation_vector([0.0, np.pi / N, 0.0])
     for i in list(range(N)):
         move = [0.1 * i, 0.0, 0.0]
         relative_move_and_rotate_agent(new_agent, d, move)
-        stereo_image, depth_image = get_sensor_observations(new_sim)
+        stereo_image, depth_image = get_sensor_observations(my_sim)
         cv2.imshow("stereo_pair", stereo_image)
         cv2.imshow("depth", depth_image)
         k = cv2.waitKey(0)
@@ -445,5 +433,97 @@ if __name__ == "__main__":
 
     cv2.destroyAllWindows()
 
+def look_around(new_agent, my_sim):
+    stereo_image, depth_image = get_sensor_observations(my_sim)
+    cv2.imshow("stereo_pair", stereo_image)
+    cv2.imshow("depth", depth_image)
+    delta_move = 0.1
+    while (1):
+        k = cv2.waitKey(0)
+        if k == ord('q'):
+            break
+        elif k == ord('f'):  # towards the scene
+            d = quaternion.from_rotation_vector([0.0, 0.0, 0.0])
+            move = [0.0, 0.0, -delta_move]
+            relative_move_and_rotate_agent(new_agent, d, move)
+            stereo_image, depth_image = get_sensor_observations(my_sim)
+            cv2.imshow("stereo_pair", stereo_image)
+            cv2.imshow("depth", depth_image)
+        elif k == ord('b'):  # away from the scene
+            d = quaternion.from_rotation_vector([0.0, 0.0, 0.0])
+            move = [0.0, 0.0, delta_move]
+            relative_move_and_rotate_agent(new_agent, d, move)
+            stereo_image, depth_image = get_sensor_observations(my_sim)
+            cv2.imshow("stereo_pair", stereo_image)
+            cv2.imshow("depth", depth_image)
+        elif k == ord('g'):  # away from the scene
+            d = quaternion.from_rotation_vector([0.0, 0.0, 0.0])
+            move = [delta_move, 0.0, 0.0]
+            relative_move_and_rotate_agent(new_agent, d, move)
+            stereo_image, depth_image = get_sensor_observations(my_sim)
+            cv2.imshow("stereo_pair", stereo_image)
+            cv2.imshow("depth", depth_image)
+        elif k == ord('h'):  # away from the scene
+            d = quaternion.from_rotation_vector([0.0, 0.0, 0.0])
+            move = [-delta_move, 0.0, 0.0]
+            relative_move_and_rotate_agent(new_agent, d, move)
+            stereo_image, depth_image = get_sensor_observations(my_sim)
+            cv2.imshow("stereo_pair", stereo_image)
+            cv2.imshow("depth", depth_image)
+        elif k == ord('r'):  # rotate agent to your (viewer's) right by 15 degrees
+            d = quaternion.from_rotation_vector([0.0, -np.pi / 12, 0.0])
+            relative_move_and_rotate_agent(new_agent, d)
+            stereo_image, depth_image = get_sensor_observations(my_sim)
+            cv2.imshow("stereo_pair", stereo_image)
+            cv2.imshow("depth", depth_image)
+        elif k == ord('l'):  # rotate agnet to your (viewer's) left by 15 degrees
+            d = quaternion.from_rotation_vector([0.0, np.pi / 12, 0.0])
+            relative_move_and_rotate_agent(new_agent, d)
+            stereo_image, depth_image = get_sensor_observations(my_sim)
+            cv2.imshow("stereo_pair", stereo_image)
+            cv2.imshow("depth", depth_image)
+        elif k == ord('u'):  # chin up
+            d = quaternion.from_rotation_vector([np.pi / 12, 0.0, 0.0])
+            relative_move_and_rotate_agent(new_agent, d)
+            stereo_image, depth_image = get_sensor_observations(my_sim)
+            cv2.imshow("stereo_pair", stereo_image)
+            cv2.imshow("depth", depth_image)
+        elif k == ord('d'):  # chin down
+            d = quaternion.from_rotation_vector([-np.pi / 12, 0.0, 0.0])
+            relative_move_and_rotate_agent(new_agent, d)
+            stereo_image, depth_image = get_sensor_observations(my_sim)
+            cv2.imshow("stereo_pair", stereo_image)
+            cv2.imshow("depth", depth_image)
+
+if __name__ == "__main__":
+
+    print("The system version is {}".format(sys.version))
+    '''
+    R = rotatation_matrix_from_Habitat_to_Pybullet()
+    my_vec = [0.2, -0.3, 0.5]
+    H = homogenous_transform(R,my_vec)
+    I = inverse_homogenous_transform(H)
+    s1 = habitat_sim.geo.UP
+    s2 = habitat_sim.geo.LEFT
+    s3 = habitat_sim.geo.FRONT
+    s4 = habitat_sim.geo.RIGHT
+    '''
+    the_sim, agent_id = setup_sim_and_sensors()
+    the_agent = the_sim.get_agent(agent_id)
+    agent_orn, agent_pos, sensors_pose = get_agent_sensor_position_orientations(the_agent)
+    print("Initial Agent orientation = {}".format(agent_orn))
+    print("Initial Left RGB Sensor orientation = {}".format(sensors_pose["left_rgb_sensor"].rotation))
+    print("Initial RGB Sensor orientation = {}".format(sensors_pose["right_rgb_sensor"].rotation))
+    print("Initial Sensor orientation = {}".format(sensors_pose["depth_sensor"].rotation))
+
+    # get and save agent state
+    # Not done
+    #test_oreo_agent(the_agent, the_sim)
+    stereo_image, depth_image = get_sensor_observations(the_sim)
+    cv2.imshow("stereo_pair", stereo_image)
+    cv2.imshow("depth", depth_image)
+    delta_move = 0.1
+    d = quaternion.from_rotation_vector([0.0, 0.0, 0.0])
+    look_around(the_agent,the_sim)
 
 
