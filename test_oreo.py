@@ -7,7 +7,11 @@ import cv2
 import matplotlib.pyplot as plt
 import pybullet as p
 
+import numpy as np
+import quaternion
+
 pos_list = []
+angle_pos_list=[]
 
 
 def test_IK(this_robot):
@@ -44,9 +48,9 @@ def move_in_yaw(pitch):
             my_pos = actuator_pos[1:]
             print("My yaw-pitch angles={} and actuator positions = {}".format(my_angles,my_pos))
             pos_list.append(my_pos)
+            angle_pos_list.append(my_angles+my_pos)
         else:
-            print("Interpolator functions not computed")
-            return 0
+            print("Actuator positions not computed")
     return 1
 def generate_interpolated_actuator_values():
     lefteye_l = []
@@ -110,7 +114,7 @@ def plot_interpolated_lefteye(interp_val):
         ax1.set_ylabel('Pitch in degrees')
         ax1.set_zlabel('Left Actuator - coral')
         ax1.set_title('Left Eye Left Actuator')
-
+        plt.show()
         lefteye_r_interp = np.array(interp_val[2])
         pit = lefteye_r_interp[:, 0]
         yaw = lefteye_r_interp[:, 1]
@@ -122,8 +126,7 @@ def plot_interpolated_lefteye(interp_val):
         ax1.set_ylabel('Pitch in degrees')
         ax1.set_zlabel('Left Actuator - Blue')
         ax1.set_title('Left Eye Right Actuator')
-
-    pass
+    return
 def plot_interpolated_righteye(interp_val):
     if interp_val[0] == 1:
         righteye_l_interp = np.array(interp_val[1])
@@ -138,7 +141,7 @@ def plot_interpolated_righteye(interp_val):
         ax1.set_ylabel('Pitch in degrees')
         ax1.set_zlabel('Left Actuator - red')
         ax1.set_title('Right Eye Left Actuator')
-
+        plt.show()
         righteye_r_interp = np.array(interp_val[2])
         pit = righteye_r_interp[:, 0]
         yaw = righteye_r_interp[:, 1]
@@ -150,8 +153,8 @@ def plot_interpolated_righteye(interp_val):
         ax1.set_ylabel('Pitch in degrees')
         ax1.set_zlabel('Left Actuator - green')
         ax1.set_title('Right Eye Right Actuator')
-
-
+        plt.show()
+    return
 def test_joint_info (myrobot):
     num_of_joints = myrobot.numJoints
     print("Number of Joints = {}".format(num_of_joints))
@@ -178,6 +181,9 @@ def test_joint_info (myrobot):
 
 if __name__ == "__main__":
     robot = oreo.Oreo_Robot(True, True, "/home/oreo/Documents/oreo_sim/oreo/sim", "assembly.urdf", True)
+    #robot = oreo.Oreo_Robot(True, True, "/home/oreo/Documents/oreo_sim/oreo/sim", "assembly.urdf", True)
+    a = p.isConnected()
+    b = p.getConnectionInfo(robot.linkage)
     robot.InitModel()
     print(robot.GetJointNames())
     robot.InitManCtrl()
@@ -191,26 +197,50 @@ if __name__ == "__main__":
         print("Building scan data takes minutes ....")
         robot.build_oreo_scan_yaw_pitch_actuator_data()
 
-    robot.get_max_min_yaw_pitch_values()
+    robot.plot_scan_data()
+    #robot.get_max_min_yaw_pitch_values()
     # read the interpolator function from pickle file
     b = robot.read_interpolator_functions()
     if b == 0:
         robot.produce_interpolators()
 
-    robot.plot_interpolator_datapoints()
+    '''
+    #test
+    my_point = [0.5,0.0,0.0]
+    the_angles = robot.compute_yaw_pitch_for_given_point(my_point)
+    val = robot.get_actuator_positions_for_a_given_yaw_pitch(the_angles)
+    if val[0] == 1:
+        a_pos = val[1:]
+        collision = robot.move_eyes_to_pos(a_pos)
+        if collision == 0:
+            orn_lefteye = robot.GetLinkOrientationWCS("left_eye_joint")
+            # convert to numpy quaternion (w,x,y,z) w is the real part.
+            orientation_lefteye = np.quaternion(orn_lefteye[3], orn_lefteye[0], orn_lefteye[1], orn_lefteye[2])
+            orn_righteye = robot.GetLinkOrientationWCS("right_eye_joint")
+            # convert to numpy quaternion (w,x,y,z) w is the real part.
+            orientation_righteye = np.quaternion(orn_righteye[3], orn_righteye[0], orn_righteye[1], orn_righteye[2])
+    # end of test
+    '''
+    #robot.plot_interpolator_datapoints()
     #robot.compare_actuator_values()
-    interp_val = generate_interpolated_actuator_values()
-    plot_interpolated_lefteye(interp_val)
-    plot_interpolated_righteye(interp_val)
-    move_in_yaw(110.0)
+    #interp_val = generate_interpolated_actuator_values()
+    #plot_interpolated_lefteye(interp_val)
+    #plot_interpolated_righteye(interp_val)
+    move_in_yaw(120.0)
 
 
     while (1):
         #robot.UpdManCtrl()
         #robot.UpdManCtrl_new()
         #robot.UpdManCtrl_test()
-        for i in pos_list:
-            robot.move_eyes_to_pos(i)
+        for i in angle_pos_list:
+            robot.move_eyes_to_pos(i[4:])
+            q, state = robot.GetLinkOrientationWCS_test("left_eye_joint")
+            print("quat = {}".format(q))
+            print("Angles = {}".format(i[:4]))
+            print("Angles = {} - Rotation of Left eye q {}".format(i[:4],q))
+            print("State = {}".format(state))
+
         k = cv2.waitKey(0)
         if k == ord('q'):
             break

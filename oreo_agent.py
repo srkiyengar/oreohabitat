@@ -3,6 +3,9 @@ import numpy as np
 import quaternion
 import sys
 import cv2
+import oreo
+
+
 
 from typing import Any, Dict, List, Union
 
@@ -73,12 +76,15 @@ def setup_sim_and_sensors():
     backend_cfg = habitat_sim.SimulatorConfiguration()
     default_agent_id = backend_cfg.default_agent_id
     backend_cfg.foveation_distortion = True
+
     backend_cfg.scene.id = (
         "../multi_agent/data_files/skokloster-castle.glb"
     )
-    # backend_cfg.scene.id = (
-    #    "/Users/rajan/My_Replica/replica_v1/room_2/mesh.ply"
-    # )
+    '''
+    backend_cfg.scene.id = (
+        "/Users/rajan/My_Replica/replica_v1/room_2/mesh.ply"
+     )
+    '''
     # Tie the backend of the simulator and a list of agent configurations
     new_Configuration = habitat_sim.Configuration(backend_cfg, [new_agent_config])
     # When Simulator is called the agent configuration becomes Agents (only one agent in our case]
@@ -91,9 +97,10 @@ def get_agent_sensor_position_orientations(my_agent):
     :param my_agent: object obtained from setting sim and agent sensors
     :return: agent orientation a quaternion and sensors orientation is a dict with sensor-id as key
     and the orientation as value.
-    get_agent_sensor_position_orientations are both with respect to the habitat frame. Internally the relative sensor orientation
-    and translations with respect to agent are stored under _sensor but the sensor_states that are accessible are
-    wrt habitat frame only.
+    get_agent_sensor_position_orientations are both with respect to the habitat frame.
+    Internally the relative sensor orientation and translations with respect to agent are stored under _sensor
+    but the sensor_states that are accessible are wrt habitat frame only.
+    The sensor states (eyes) wrt to the agent state (head/neck) is NOT computed by this function.
     """
 
     my_agent_state = my_agent.get_state()
@@ -103,14 +110,13 @@ def get_agent_sensor_position_orientations(my_agent):
     return agent_orientation, agent_position, sensors_position_orientation
 
 
-def rotate_sensor_wrt_stationary_agent_frame(my_agent, sensors_rotation):
+def relative_sensor_rotation(my_agent, sensors_rotation):
     """
-    The sensors_rotation is specified with respect to the agent frame.
+    The sensors_rotation is specified with respect to its current frame.
     This function will set the sensors orientation in habitat  w.r.t. to habitat frame.
     The agent is not moving or changing orientation.
     It is important to remember that sensor_states are with respect to habitat frame while the relative rotation
     between agent and sensor is saved within protected _sensor by the set agent sensor API function
-    This movement is similar to left and right eye movements of OREO with respect to the frame of the skull.
     :param my_agent: agent object
     :param sensors_rotation: list of quaternions - rotation of the sensors with respect to agent frame
     :return: nothing
@@ -124,8 +130,31 @@ def rotate_sensor_wrt_stationary_agent_frame(my_agent, sensors_rotation):
     my_agent.set_state(my_agent_state, infer_sensor_states=False)
     return
 
+def rotate_sensor_wrt_habitat_frame(my_agent, sensors_rotation):
+    """
+    The sensors_rotation is specified with respect to the habitat frame.
+    :param my_agent: agent object
+    :param sensors_rotation: list of quaternions - rotation of the sensors with respect to agent frame
+    :return: nothing
+    """
 
-def verge_sensors(my_angle, my_agent, verge):      #If verge is 'c' it will converge if it is 'd' it will diverge
+    my_agent_state = my_agent.get_state()
+    agent_orn = my_agent_state.rotation
+    my_agent_state.sensor_states["left_rgb_sensor"].rotation = sensors_rotation[0]
+    my_agent_state.sensor_states["right_rgb_sensor"].rotation = sensors_rotation[1]
+    my_agent_state.sensor_states["depth_sensor"].rotation = sensors_rotation[2]
+    my_agent.set_state(my_agent_state, infer_sensor_states=False)
+    return
+
+
+def verge_sensors(my_angle, my_agent, verge):
+    '''
+
+    :param my_angle: The angle by which converging or diverging from the current position
+    :param my_agent: The agent object
+    :param verge: 'c' it will converge 'd' it will diverge
+    :return:
+    '''
 
     if verge == 'c':
         left_sensor = quaternion.from_rotation_vector([0.0, my_angle, 0.0])
@@ -141,10 +170,67 @@ def verge_sensors(my_angle, my_agent, verge):      #If verge is 'c' it will conv
     left_sensor = (r1_inverse*my_agent_state.sensor_states["left_rgb_sensor"].rotation)*left_sensor
     right_sensor = (r1_inverse*my_agent_state.sensor_states["right_rgb_sensor"].rotation)*right_sensor
     sensor_rot = [left_sensor, right_sensor, depth_sensor]
-    rotate_sensor_wrt_stationary_agent_frame(my_agent,sensor_rot)
+    relative_sensor_rotation(my_agent,sensor_rot)
     return
 
 
+def verge_sensors_to_midpoint_depth(my_agent, my_sim, my_robot):
+    scene_depth, res = get_depth(my_sim)
+    center_x = int(res.x / 2)
+    center_y = int(res.x / 2)
+    my_z = -scene_depth[center_x, center_y]
+
+    my_point = np.array([[0.0], [0.0], [my_z]])
+    my_point = ((rotatation_matrix_from_Pybullet_to_Habitat().dot(my_point)).flatten()).tolist()
+    # move oreo eyes to the point in pybullet to detect collision
+    the_angles = my_robot.compute_yaw_pitch_for_given_point(my_point)
+    val = my_robot.get_actuator_positions_for_a_given_yaw_pitch(the_angles)
+    if val[0] == 1:
+        a_pos = val[1:]
+
+        collision, lefteye_orn, righteye_orn = my_robot.move_eyes_to_position_and_return_orn(a_pos)
+        if collision == 0:
+            depth_sensor = quaternion.from_rotation_vector([0.0, 0.0, 0.0])
+            sensor_rot = [lefteye_orn, righteye_orn, depth_sensor]
+            rotate_sensor_wrt_habitat_frame(my_agent, sensor_rot)
+            return
+        else:
+            print("verge_sensors_to_midpoint_depth: Collision for depth {}".format(my_z))
+            return
+    else:
+        print("verge_sensors_to_midpoint_depth:Interpolator functions not computed for depth {}".format(my_z))
+        return
+
+
+def verge_sensors_to_point(my_agent, my_sim, my_robot, my_p):
+
+    my_point = np.array(my_p)
+    my_point.shape = (3,1)
+    my_point = ((rotatation_matrix_from_Pybullet_to_Habitat().dot(my_point)).flatten()).tolist()
+    # move oreo eyes to the point in pybullet to detect collision
+    the_angles = my_robot.compute_yaw_pitch_for_given_point(my_point)
+    print("Verge_to_point: Target Angles : Left eye yaw = {}, pitch = {}, Right eye yaw = {}, pitch = {}".
+          format(the_angles[0],the_angles[1], the_angles[2],the_angles[3]))
+    val = my_robot.get_actuator_positions_for_a_given_yaw_pitch(the_angles)
+    if val[0] == 1:
+        a_pos = val[1:]
+        collision, lefteye_orn, righteye_orn = my_robot.move_eyes_to_position_and_return_orn(a_pos)
+        if collision == 0:
+            depth_sensor = quaternion.from_rotation_vector([0.0, 0.0, 0.0])
+            sensor_rot = [lefteye_orn, righteye_orn, depth_sensor]
+            yp_left, yp_right = compute_yaw_pitch_from_orientation(lefteye_orn, righteye_orn)
+            print ("Verge_to_point: Achieved: Left eye yaw = {}, pitch = {}, Right eye yaw = {}, pitch = {}".format(yp_left[0],
+                   yp_left[1], yp_right[0], yp_right[1]))
+            # print(sensor_rot)
+            rotate_sensor_wrt_habitat_frame(my_agent, sensor_rot)
+            return
+
+        else:
+            print("verge_sensors_to_point: Collision for point {}".format(my_p))
+            return
+    else:
+        print("verge_sensors_to_point:Interpolator functions not computed for depth {}".format(my_p))
+        return
 
 def rotate_agent(my_agent, my_rotation):
     """
@@ -308,6 +394,15 @@ def relative_move_and_rotate_agent(my_agent, rel_rotation, rel_move=[0.0, 0.0, 0
     return
 
 
+def compute_yaw_pitch_from_orientation(left_quat, right_quat):
+    my_rot_matrix_left = quaternion.as_rotation_matrix(left_quat)
+    yp1 = oreo.compute_yaw_pitch_from_vector(my_rot_matrix_left[:, 0])
+    # Right eye
+    my_rot_matrix_right = quaternion.as_rotation_matrix(right_quat)
+    yp2 = oreo.compute_yaw_pitch_from_vector(my_rot_matrix_right[:, 0])
+    return yp1, yp2
+
+
 '''
 Habitatai coordinate frame (x+ive,y+ive,z -ive) is Pybullet's frame (y-ive, z+ive, x+ive)
 Rotation from Habitat to PyBullet R row 0 = [0.-1,0], row 1 = [0,0,1], row 2 = [-1,0,0]
@@ -365,6 +460,11 @@ def inverse_homogenous_transform(H):
     R = R.T
     origin = -R.dot(origin)
     return homogenous_transform(R, list(origin.flatten()))
+
+def get_depth(oreo_sim):
+    depth_sensor = oreo_sim._sensors['depth_sensor']
+    depth_sensor.draw_observation()
+    return depth_sensor.get_observation(), depth_sensor._sensor_object.framebuffer_size
 
 
 def get_sensor_observations(oreo_sim):
@@ -454,8 +554,9 @@ def test_oreo_agent(new_agent, my_sim):
 
     cv2.destroyAllWindows()
 
-def look_around(new_agent, my_sim):
+def look_around(new_agent, my_sim, my_robot):
     original_state = new_agent.get_state()
+    verge_sensors_to_midpoint_depth(new_agent, my_sim, my_robot)
     stereo_image, depth_image = get_sensor_observations(my_sim)
     cv2.imshow("stereo_pair", stereo_image)
     cv2.imshow("depth", depth_image)
@@ -464,6 +565,12 @@ def look_around(new_agent, my_sim):
         k = cv2.waitKey(0)
         if k == ord('q'):
             break
+        elif k == ord('p'):
+            my_p = [3.0, 0.5, -9.0]
+            verge_sensors_to_point(new_agent, my_sim, my_robot, my_p)
+            stereo_image, depth_image = get_sensor_observations(my_sim)
+            cv2.imshow("stereo_pair", stereo_image)
+            cv2.imshow("depth", depth_image)
         elif k == ord('f'):  # towards the scene
             d = quaternion.from_rotation_vector([0.0, 0.0, 0.0])
             move = [0.0, 0.0, -delta_move]
@@ -498,7 +605,7 @@ def look_around(new_agent, my_sim):
             stereo_image, depth_image = get_sensor_observations(my_sim)
             cv2.imshow("stereo_pair", stereo_image)
             cv2.imshow("depth", depth_image)
-        elif k == ord('l'):  # rotate agnet to your (viewer's) left by 15 degrees
+        elif k == ord('l'):  # rotate agent to your (viewer's) left by 15 degrees
             d = quaternion.from_rotation_vector([0.0, np.pi / 12, 0.0])
             relative_move_and_rotate_agent(new_agent, d)
             stereo_image, depth_image = get_sensor_observations(my_sim)
@@ -516,12 +623,12 @@ def look_around(new_agent, my_sim):
             stereo_image, depth_image = get_sensor_observations(my_sim)
             cv2.imshow("stereo_pair", stereo_image)
             cv2.imshow("depth", depth_image)
-        elif k == ord('c'):  # converge
+        elif k == ord('c'):  # converge - eyes are moving
             verge_sensors(np.pi/20,new_agent,'c')
             stereo_image, depth_image = get_sensor_observations(my_sim)
             cv2.imshow("stereo_pair", stereo_image)
             cv2.imshow("depth", depth_image)
-        elif k == ord('d'):  # diverge
+        elif k == ord('d'):  # diverge - eyes are moving
             verge_sensors(np.pi/20,new_agent,'d')
             stereo_image, depth_image = get_sensor_observations(my_sim)
             cv2.imshow("stereo_pair", stereo_image)
@@ -531,6 +638,12 @@ def look_around(new_agent, my_sim):
             stereo_image, depth_image = get_sensor_observations(my_sim)
             cv2.imshow("stereo_pair", stereo_image)
             cv2.imshow("depth", depth_image)
+        elif k == ord('m'):
+            verge_sensors_to_midpoint_depth(new_agent, my_sim, my_robot)
+            stereo_image, depth_image = get_sensor_observations(my_sim)
+            cv2.imshow("stereo_pair", stereo_image)
+            cv2.imshow("depth", depth_image)
+
 
 if __name__ == "__main__":
 
@@ -545,6 +658,25 @@ if __name__ == "__main__":
     s3 = habitat_sim.geo.FRONT
     s4 = habitat_sim.geo.RIGHT
     '''
+    oreo_robot = oreo.setup_oreo_in_pybullet()
+    '''
+    # test
+    my_point = [0.3, 0.0, 0.0]
+    the_angles = oreo_robot.compute_yaw_pitch_for_given_point(my_point)
+    val = oreo_robot.get_actuator_positions_for_a_given_yaw_pitch(the_angles)
+    if val[0] == 1:
+        a_pos = val[1:]
+        collision = oreo_robot.move_eyes_to_pos(a_pos)
+        if collision == 0:
+            orn_lefteye = oreo_robot.GetLinkOrientationWCS("left_eye_joint")
+            # convert to numpy quaternion (w,x,y,z) w is the real part.
+            orientation_lefteye = np.quaternion(orn_lefteye[3], orn_lefteye[0], orn_lefteye[1], orn_lefteye[2])
+            orn_righteye = oreo_robot.GetLinkOrientationWCS("right_eye_joint")
+            # convert to numpy quaternion (w,x,y,z) w is the real part.
+            orientation_righteye = np.quaternion(orn_righteye[3], orn_righteye[0], orn_righteye[1], orn_righteye[2])
+    # end of test
+    '''
+
     the_sim, agent_id = setup_sim_and_sensors()
     the_agent = the_sim.get_agent(agent_id)
     agent_orn, agent_pos, sensors_pose = get_agent_sensor_position_orientations(the_agent)
@@ -553,9 +685,12 @@ if __name__ == "__main__":
     print("Initial RGB Sensor orientation = {}".format(sensors_pose["right_rgb_sensor"].rotation))
     print("Initial Sensor orientation = {}".format(sensors_pose["depth_sensor"].rotation))
 
+
+
+
     # get and save agent state
     # Not done
     #test_oreo_agent(the_agent, the_sim)
-    look_around(the_agent,the_sim)
+    look_around(the_agent, the_sim, oreo_robot)
 
 
