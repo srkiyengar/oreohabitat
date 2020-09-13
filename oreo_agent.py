@@ -16,7 +16,8 @@ from typing import Any, Dict, List, Union
 import attr
 
 eye_seperation = 0.058
-
+display = "a"
+toggle = 0
 
 @attr.s(auto_attribs=True, slots=True)
 class SixDOFPose(object):
@@ -82,7 +83,7 @@ def setup_sim_and_sensors():
     )
     '''
     backend_cfg.scene.id = (
-        "/Users/rajan/My_Replica/replica_v1/room_2/mesh.ply"
+        "/Users/rajan/My_Replica/replica_v1/apartment_1/mesh.ply"
      )
     '''
     # Tie the backend of the simulator and a list of agent configurations
@@ -134,7 +135,7 @@ def rotate_sensor_wrt_habitat_frame(my_agent, sensors_rotation):
     """
     The sensors_rotation is specified with respect to the habitat frame.
     :param my_agent: agent object
-    :param sensors_rotation: list of quaternions - rotation of the sensors with respect to agent frame
+    :param sensors_rotation: list of quaternions - rotation of the sensors with respect to habitat frame
     :return: nothing
     """
 
@@ -202,7 +203,7 @@ def verge_sensors_to_midpoint_depth(my_agent, my_sim, my_robot):
         return
 
 
-def verge_sensors_to_point(my_agent, my_sim, my_robot, my_p):
+def verge_sensors_to_point(my_agent, my_robot, my_p):
 
     my_point = np.array(my_p)
     my_point.shape = (3,1)
@@ -211,14 +212,17 @@ def verge_sensors_to_point(my_agent, my_sim, my_robot, my_p):
     the_angles = my_robot.compute_yaw_pitch_for_given_point(my_point)
     print("Verge_to_point: Target Angles : Left eye yaw = {}, pitch = {}, Right eye yaw = {}, pitch = {}".
           format(the_angles[0],the_angles[1], the_angles[2],the_angles[3]))
+    quat = compute_rotation_for_a_given_yaw_pitch(the_angles[0],the_angles[1])
     val = my_robot.get_actuator_positions_for_a_given_yaw_pitch(the_angles)
     if val[0] == 1:
         a_pos = val[1:]
         collision, lefteye_orn, righteye_orn = my_robot.move_eyes_to_position_and_return_orn(a_pos)
+        print("VergeToPoint: computed = {} - From Pybullet = {}".format(quat, lefteye_orn))
         if collision == 0:
             depth_sensor = quaternion.from_rotation_vector([0.0, 0.0, 0.0])
             sensor_rot = [lefteye_orn, righteye_orn, depth_sensor]
             yp_left, yp_right = compute_yaw_pitch_from_orientation(lefteye_orn, righteye_orn)
+            print("Actuator positions = {}".format(a_pos))
             print ("Verge_to_point: Achieved: Left eye yaw = {}, pitch = {}, Right eye yaw = {}, pitch = {}".format(yp_left[0],
                    yp_left[1], yp_right[0], yp_right[1]))
             # print(sensor_rot)
@@ -395,22 +399,64 @@ def relative_move_and_rotate_agent(my_agent, rel_rotation, rel_move=[0.0, 0.0, 0
 
 
 def compute_yaw_pitch_from_orientation(left_quat, right_quat):
+    '''
+
+    :param left_quat: numpy quaternion (w,x,y,z) for left sensor
+    :param right_quat: numpy quaternion for right sensor
+    :return: tuple - left yaw, pitch, right yaw, pitch in degrees
+    '''
     my_rot_matrix_left = quaternion.as_rotation_matrix(left_quat)
     yp1 = oreo.compute_yaw_pitch_from_vector(my_rot_matrix_left[:, 0])
+    print("New x-unit vector = {}".format(my_rot_matrix_left[:, 0]))
     # Right eye
     my_rot_matrix_right = quaternion.as_rotation_matrix(right_quat)
     yp2 = oreo.compute_yaw_pitch_from_vector(my_rot_matrix_right[:, 0])
     return yp1, yp2
 
 
+def compute_rotation_for_a_given_yaw_pitch(given_yaw, given_pitch, given_roll=0.0):
+    '''
+    This uses the yaw and the pitch to calculate a rotation of the current x-axis to a new direction.
+    To perform a roll, another rotation of roll angle around the new-axis needs to be performed.
+    From a fixed axis perspective it should be equivalent a sequence of yaw, pitch and roll.
+    :param given_yaw:
+    :param given_pitch:
+    :param given_roll:
+    :return: quaternion
+    '''
+
+    rz = np.cos(np.radians(given_pitch))
+    rxy = np.sin(np.radians(given_pitch))
+    ry = rxy*np.sin(np.radians(given_yaw))
+    rx = rxy*np.cos(np.radians(given_yaw))
+    uvector = np.array([rx,ry,rz])
+    v1 = uvector/np.linalg.norm(uvector)
+
+    v2 = np.array([1.0, 0.0, 0.0])
+    # my_axis is v2 cross v1
+    my_axis = np.cross(v2, v1)
+    my_axis = my_axis / np.linalg.norm(my_axis)
+    my_angle = np.arccos(np.dot(v1, v2))
+    my_axis_angle = my_angle * my_axis
+    quat1 = quaternion.from_rotation_vector(my_axis_angle)
+    rot_mat = quaternion.as_rotation_matrix(quat1)
+    print("x-axis vector = {}".format(rot_mat[:,0]))
+    if given_roll == 0.0:
+        return quat1
+    else:
+        roll_axis_angle = np.radians(given_roll)*v1
+        quat2 = quaternion.from_rotation_vector(roll_axis_angle)
+        return quat1*quat2
+
+
 '''
+Habitat frame versus Pybullet frame
 Habitatai coordinate frame (x+ive,y+ive,z -ive) is Pybullet's frame (y-ive, z+ive, x+ive)
 Rotation from Habitat to PyBullet R row 0 = [0.-1,0], row 1 = [0,0,1], row 2 = [-1,0,0]
 Homogenous transformation can be obtained using the position of the agent.
 Rotation (Inverse) from Pybullet to Habitatai row 0 = [0 0 -1], row 1 = [-1 0 0], row 2 = [0,1,0]]
 Given a point in Habitat, we do a rotation to pybullet, determine if there is collision and get 
 the orientation of the eyes. This orientation has to be rotated back to view the scene in Habitat.
-
 '''
 
 def rotatation_matrix_from_Habitat_to_Pybullet():
@@ -493,6 +539,25 @@ def get_sensor_observations(oreo_sim):
 
     return stereo_pair, depth
 
+def display_image(oreo_sim):
+    global toggle
+
+    if toggle == 1:
+        cv2.destroyAllWindows()
+        toggle = 0
+
+    stereo_image, depth_image = get_sensor_observations(oreo_sim)
+    lefteye_image = stereo_image[:,0:512,:]
+    righteye_image = stereo_image[:,512:,:]
+
+    if display == 'l':
+        cv2.imshow("Left_eye", lefteye_image)
+    else:
+        cv2.imshow("stereo_pair", stereo_image)
+        cv2.imshow("depth", depth_image)
+
+    return
+
 
 def test_oreo_agent(new_agent, my_sim):
     init_pos = move = [0.9539339, 0.1917877, 12.163067]
@@ -554,95 +619,82 @@ def test_oreo_agent(new_agent, my_sim):
 
     cv2.destroyAllWindows()
 
-def look_around(new_agent, my_sim, my_robot):
-    original_state = new_agent.get_state()
-    verge_sensors_to_midpoint_depth(new_agent, my_sim, my_robot)
-    stereo_image, depth_image = get_sensor_observations(my_sim)
-    cv2.imshow("stereo_pair", stereo_image)
-    cv2.imshow("depth", depth_image)
+def look_around(my_agent, my_sim, my_robot, type = "a"):
+    global display, toggle
+    original_state = my_agent.get_state()
+    #verge_sensors_to_midpoint_depth(my_agent, my_sim, my_robot)
+    if type == 'l':
+        display = "l"
+    display_image(my_sim)
     delta_move = 0.1
     while (1):
         k = cv2.waitKey(0)
         if k == ord('q'):
             break
         elif k == ord('p'):
-            my_p = [3.0, 0.5, -9.0]
-            verge_sensors_to_point(new_agent, my_sim, my_robot, my_p)
-            stereo_image, depth_image = get_sensor_observations(my_sim)
-            cv2.imshow("stereo_pair", stereo_image)
-            cv2.imshow("depth", depth_image)
+            _, _, sensors_pos_orn = get_agent_sensor_position_orientations(my_agent)
+            ypl,ypr = compute_yaw_pitch_from_orientation(sensors_pos_orn['left_rgb_sensor'].rotation,
+                                                    sensors_pos_orn['right_rgb_sensor'].rotation)
+            print("look_around: At: Left eye yaw = {}, pitch = {}, Right eye yaw = {}, pitch = {}".format(
+                ypl[0], ypl[1], ypr[0], ypr[1]))
+            my_p = [4.0, 3.0, -9.0]
+            verge_sensors_to_point(my_agent, my_robot, my_p)
+            display_image(my_sim)
         elif k == ord('f'):  # towards the scene
             d = quaternion.from_rotation_vector([0.0, 0.0, 0.0])
             move = [0.0, 0.0, -delta_move]
-            relative_move_and_rotate_agent(new_agent, d, move)
-            stereo_image, depth_image = get_sensor_observations(my_sim)
-            cv2.imshow("stereo_pair", stereo_image)
-            cv2.imshow("depth", depth_image)
+            relative_move_and_rotate_agent(my_agent, d, move)
+            display_image(my_sim)
         elif k == ord('b'):  # away from the scene
             d = quaternion.from_rotation_vector([0.0, 0.0, 0.0])
             move = [0.0, 0.0, delta_move]
-            relative_move_and_rotate_agent(new_agent, d, move)
-            stereo_image, depth_image = get_sensor_observations(my_sim)
-            cv2.imshow("stereo_pair", stereo_image)
-            cv2.imshow("depth", depth_image)
+            relative_move_and_rotate_agent(my_agent, d, move)
+            display_image(my_sim)
         elif k == ord('j'):  # viewing to left side
             d = quaternion.from_rotation_vector([0.0, 0.0, 0.0])
             move = [delta_move, 0.0, 0.0]
-            relative_move_and_rotate_agent(new_agent, d, move)
-            stereo_image, depth_image = get_sensor_observations(my_sim)
-            cv2.imshow("stereo_pair", stereo_image)
-            cv2.imshow("depth", depth_image)
+            relative_move_and_rotate_agent(my_agent, d, move)
+            display_image(my_sim)
         elif k == ord('k'):  # viewing to the right
             d = quaternion.from_rotation_vector([0.0, 0.0, 0.0])
             move = [-delta_move, 0.0, 0.0]
-            relative_move_and_rotate_agent(new_agent, d, move)
-            stereo_image, depth_image = get_sensor_observations(my_sim)
-            cv2.imshow("stereo_pair", stereo_image)
-            cv2.imshow("depth", depth_image)
+            relative_move_and_rotate_agent(my_agent, d, move)
+            display_image(my_sim)
         elif k == ord('r'):  # rotate agent to your (viewer's) right by 15 degrees
             d = quaternion.from_rotation_vector([0.0, -np.pi / 12, 0.0])
-            relative_move_and_rotate_agent(new_agent, d)
-            stereo_image, depth_image = get_sensor_observations(my_sim)
-            cv2.imshow("stereo_pair", stereo_image)
-            cv2.imshow("depth", depth_image)
+            relative_move_and_rotate_agent(my_agent, d)
+            display_image(my_sim)
         elif k == ord('l'):  # rotate agent to your (viewer's) left by 15 degrees
             d = quaternion.from_rotation_vector([0.0, np.pi / 12, 0.0])
-            relative_move_and_rotate_agent(new_agent, d)
-            stereo_image, depth_image = get_sensor_observations(my_sim)
-            cv2.imshow("stereo_pair", stereo_image)
-            cv2.imshow("depth", depth_image)
+            relative_move_and_rotate_agent(my_agent, d)
+            display_image(my_sim)
         elif k == ord('u'):  # chin up
             d = quaternion.from_rotation_vector([np.pi / 12, 0.0, 0.0])
-            relative_move_and_rotate_agent(new_agent, d)
-            stereo_image, depth_image = get_sensor_observations(my_sim)
-            cv2.imshow("stereo_pair", stereo_image)
-            cv2.imshow("depth", depth_image)
+            relative_move_and_rotate_agent(my_agent, d)
+            display_image(my_sim)
         elif k == ord('g'):  # chin down
             d = quaternion.from_rotation_vector([-np.pi / 12, 0.0, 0.0])
-            relative_move_and_rotate_agent(new_agent, d)
-            stereo_image, depth_image = get_sensor_observations(my_sim)
-            cv2.imshow("stereo_pair", stereo_image)
-            cv2.imshow("depth", depth_image)
+            relative_move_and_rotate_agent(my_agent, d)
+            display_image(my_sim)
         elif k == ord('c'):  # converge - eyes are moving
-            verge_sensors(np.pi/20,new_agent,'c')
-            stereo_image, depth_image = get_sensor_observations(my_sim)
-            cv2.imshow("stereo_pair", stereo_image)
-            cv2.imshow("depth", depth_image)
+            verge_sensors(np.pi/20,my_agent,'c')
+            display_image(my_sim)
         elif k == ord('d'):  # diverge - eyes are moving
-            verge_sensors(np.pi/20,new_agent,'d')
-            stereo_image, depth_image = get_sensor_observations(my_sim)
-            cv2.imshow("stereo_pair", stereo_image)
-            cv2.imshow("depth", depth_image)
+            verge_sensors(np.pi/20,my_agent,'d')
+            display_image(my_sim)
         elif k == ord('n'):
-            new_agent.set_state(original_state)
-            stereo_image, depth_image = get_sensor_observations(my_sim)
-            cv2.imshow("stereo_pair", stereo_image)
-            cv2.imshow("depth", depth_image)
+            my_agent.set_state(original_state)
+            display_image(my_sim)
         elif k == ord('m'):
-            verge_sensors_to_midpoint_depth(new_agent, my_sim, my_robot)
-            stereo_image, depth_image = get_sensor_observations(my_sim)
-            cv2.imshow("stereo_pair", stereo_image)
-            cv2.imshow("depth", depth_image)
+            verge_sensors_to_midpoint_depth(my_agent, my_sim, my_robot)
+            display_image(my_sim)
+        elif k == ord('t'):
+            toggle = 1
+            if display == "a":
+                display = "l"
+            else:
+                display = "a"
+
 
 
 if __name__ == "__main__":
@@ -678,8 +730,8 @@ if __name__ == "__main__":
     '''
 
     the_sim, agent_id = setup_sim_and_sensors()
-    the_agent = the_sim.get_agent(agent_id)
-    agent_orn, agent_pos, sensors_pose = get_agent_sensor_position_orientations(the_agent)
+    o_agent = the_sim.get_agent(agent_id)
+    agent_orn, agent_pos, sensors_pose = get_agent_sensor_position_orientations(o_agent)
     print("Initial Agent orientation = {}".format(agent_orn))
     print("Initial Left RGB Sensor orientation = {}".format(sensors_pose["left_rgb_sensor"].rotation))
     print("Initial RGB Sensor orientation = {}".format(sensors_pose["right_rgb_sensor"].rotation))
@@ -690,7 +742,7 @@ if __name__ == "__main__":
 
     # get and save agent state
     # Not done
-    #test_oreo_agent(the_agent, the_sim)
-    look_around(the_agent, the_sim, oreo_robot)
+    #test_oreo_agent(o_agent, the_sim)
+    look_around(o_agent, the_sim, oreo_robot, type="l")
 
 

@@ -470,31 +470,34 @@ class Oreo_Robot(object):
     def UpdManCtrl_new(self):
 
         pos = [0] * self.actJointNum
-        '''
-        pos[3] = -0.014
-        pos[4] = -0.012
-        pos[5] = 0.015
-        pos[6] = 0.013
-        '''
-        pos[3] = -0.0170896  # -0.017, -0.014
-        pos[4] = -0.0156  # -0.017, -0.015
-        # pos[5] = 0.1766523#0.035, -0.022
-        # pos[6] = -0.00883694#0.020, -0.016
 
-        if self.k == 0:
+        if (self.k % 2) == 0:
+            pos[3] = -0.0008977884881081077
+            pos[4] = -0.01540386162824471
+            pos[5] = -0.0017827516943691689
+            pos[6] = -0.014753888804415135
             print("Actuator Positions = {}".format(pos))
             self.ControlActJoints(pos)
             self.actJointPos = pos
-            time.sleep(0.1)
+            time.sleep(0.2)
             # Left eye
             orn_lefteye = self.GetLinkOrientationWCS("left_eye_joint")
+            some = self.GetLinkPosOrn("left_eye_joint")
+            orn_lefteye2 = some[1]
             # convert to numpy quaternion (w,x,y,z) w is the real part.
             orientation_lefteye = np.quaternion(orn_lefteye[3], orn_lefteye[0], orn_lefteye[1], orn_lefteye[2])
+            orientation_lefteye2 = np.quaternion(orn_lefteye2[3], orn_lefteye2[0], orn_lefteye2[1], orn_lefteye2[2])
             my_axis_angle_lefteye = quaternion.as_rotation_vector(orientation_lefteye)
             rotation_angle_lefteye = np.linalg.norm(my_axis_angle_lefteye)
             rotation_axis_lefteye = my_axis_angle_lefteye / rotation_angle_lefteye
             my_angles_left = np.degrees(quaternion.as_spherical_coords(orientation_lefteye))
             my_rot_matrix_left = quaternion.as_rotation_matrix(orientation_lefteye)
+            my_rot_matrix_left2 = quaternion.as_rotation_matrix(orientation_lefteye2)
+            print("UpdManCtrl_new: Left Eye x-axis = {}".format(my_rot_matrix_left[:, 0]))
+            print("UpdManCtrl_new: Left Eye x-axis Jack = {}".format(my_rot_matrix_left2[:, 0]))
+            #print("UpdManCtrl_new: Left Eye Quat = {}".format(orientation_lefteye))
+            #print("UpdManCtrl_new: Left Eye axis = {}, angle = {}".format(rotation_axis_lefteye,rotation_angle_lefteye))
+            #print("UpdManCtrl_new: Left Eye Rot Mat = {}".format(my_rot_matrix_left))
 
             # Right eye
             orn_righteye = self.GetLinkOrientationWCS("right_eye_joint")  # as a list in [x,y,z,w] order
@@ -506,14 +509,51 @@ class Oreo_Robot(object):
             my_angles_right = np.degrees(quaternion.as_spherical_coords(orientation_righteye))
             my_rot_matrix_right = quaternion.as_rotation_matrix(orientation_righteye)
 
-            print("UpdManCtrl_new: Right Angles {} - Left angles {}".format(my_angles_right, my_angles_left))
+            #print("UpdManCtrl_new: Left Angles {} - Right angles {}".format(my_angles_left, my_angles_right))
             points = p.getContactPoints()
             if len(points) != 0:
-                print("Collision for {}")
+                print("Collision for {}".format(pos))
             else:
                 print(" No collision".format(pos))
 
-            self.k = 1
+            self.k += 1
+        else:
+            pos[3] = 0.0
+            pos[4] = 0.0
+            pos[5] = 0.0
+            pos[6] = 0.0
+            print("Actuator Positions = {}".format(pos))
+            self.ControlActJoints(pos)
+            self.actJointPos = pos
+            time.sleep(0.1)
+            orn_lefteye = self.GetLinkOrientationWCS("left_eye_joint")
+            some = self.GetLinkPosOrn("left_eye_joint")
+            orn_lefteye2 = some[1]
+            # convert to numpy quaternion (w,x,y,z) w is the real part.
+            orientation_lefteye = np.quaternion(orn_lefteye[3], orn_lefteye[0], orn_lefteye[1], orn_lefteye[2])
+            orientation_lefteye2 = np.quaternion(orn_lefteye2[3], orn_lefteye2[0], orn_lefteye2[1], orn_lefteye2[2])
+            my_axis_angle_lefteye = quaternion.as_rotation_vector(orientation_lefteye)
+            rotation_angle_lefteye = np.linalg.norm(my_axis_angle_lefteye)
+            rotation_axis_lefteye = my_axis_angle_lefteye / rotation_angle_lefteye
+            my_angles_left = np.degrees(quaternion.as_spherical_coords(orientation_lefteye))
+            my_rot_matrix_left = quaternion.as_rotation_matrix(orientation_lefteye)
+            my_rot_matrix_left2 = quaternion.as_rotation_matrix(orientation_lefteye2)
+            print("UpdManCtrl_new: Left Eye x-axis = {}".format(my_rot_matrix_left[:, 0]))
+            print("UpdManCtrl_new: Left Eye x-axis Jack = {}".format(my_rot_matrix_left2[:, 0]))
+            # print("UpdManCtrl_new: Left Eye Quat = {}".format(orientation_lefteye))
+            # print("UpdManCtrl_new: Left Eye axis = {}, angle = {}".format(rotation_axis_lefteye,rotation_angle_lefteye))
+            # print("UpdManCtrl_new: Left Eye Rot Mat = {}".format(my_rot_matrix_left))
+
+            # Right eye
+            orn_righteye = self.GetLinkOrientationWCS("right_eye_joint")  # as a list in [x,y,z,w] order
+            # convert tonge =  numpy array quaternion (w,x,y,z) - w is the real part
+            orientation_righteye = np.quaternion(orn_righteye[3], orn_righteye[0], orn_righteye[1], orn_righteye[2])
+            my_axis_angle_righteye = quaternion.as_rotation_vector(orientation_righteye)
+            rotation_angle_righteye = np.linalg.norm(my_axis_angle_righteye)
+            rotation_axis_righteye = my_axis_angle_righteye / rotation_angle_righteye
+            my_angles_right = np.degrees(quaternion.as_spherical_coords(orientation_righteye))
+            my_rot_matrix_right = quaternion.as_rotation_matrix(orientation_righteye)
+            self.k += 1
 
     ##
             # Update manual control
@@ -556,9 +596,16 @@ class Oreo_Robot(object):
         pos[5] = new_pos[2]
         pos[6] = new_pos[3]
 
-        self.ControlActJoints(pos)
+
+        if self.useRealTime == False:
+            p.setTimeStep(self.TIME_STEP)
+            self.ControlActJoints(pos)
+            for _ in range(100):
+                p.stepSimulation()
+        else:
+            self.ControlActJoints(pos)
+            time.sleep(0.3)
         self.actJointPos = pos
-        time.sleep(0.1)
         collide = len(p.getContactPoints())
 
         orn_lefteye = self.GetLinkOrientationWCS("left_eye_joint")

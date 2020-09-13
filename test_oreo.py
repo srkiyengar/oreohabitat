@@ -197,7 +197,7 @@ if __name__ == "__main__":
         print("Building scan data takes minutes ....")
         robot.build_oreo_scan_yaw_pitch_actuator_data()
 
-    robot.plot_scan_data()
+    #robot.plot_scan_data()
     #robot.get_max_min_yaw_pitch_values()
     # read the interpolator function from pickle file
     b = robot.read_interpolator_functions()
@@ -233,6 +233,7 @@ if __name__ == "__main__":
         #robot.UpdManCtrl()
         #robot.UpdManCtrl_new()
         #robot.UpdManCtrl_test()
+
         for i in angle_pos_list:
             robot.move_eyes_to_pos(i[4:])
             q, state = robot.GetLinkOrientationWCS_test("left_eye_joint")
@@ -240,11 +241,11 @@ if __name__ == "__main__":
             print("Angles = {}".format(i[:4]))
             print("Angles = {} - Rotation of Left eye q {}".format(i[:4],q))
             print("State = {}".format(state))
-
+        '''
         k = cv2.waitKey(0)
         if k == ord('q'):
             break
-
+        '''
 
         keys = robot.GetKeyEvents()
         if 'c' in keys:
@@ -252,7 +253,7 @@ if __name__ == "__main__":
         if 'p' in keys:
             robot.GetLinkPosOrn('neck_joint')
         if 'q' in keys:
-            # quit
+            quit
             break
         #robot.final_pose()
     robot.Cleanup()
