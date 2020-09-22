@@ -52,6 +52,25 @@ def move_in_yaw(pitch):
         else:
             print("Actuator positions not computed")
     return 1
+
+
+def move_x_and_z(x_val, y_mid, z_val):
+    y_val = np.linspace(y_mid-2.0,y_mid+2.0,50)
+    for i in y_val:
+        view_point = [x_val, i, z_val]
+        my_angles = robot.compute_yaw_pitch_for_given_point(view_point)
+        actuator_pos = robot.get_actuator_positions_for_a_given_yaw_pitch(my_angles)
+        if actuator_pos[0] == 1:
+            my_pos = actuator_pos[1:]
+            #print("My yaw-pitch angles={} and actuator positions = {}".format(my_angles, my_pos))
+            pos_list.append(my_pos)
+            angle_pos_list.append(list(my_angles) + my_pos)
+        else:
+            print("Actuator positions not computed")
+    return 1
+
+
+
 def generate_interpolated_actuator_values():
     lefteye_l = []
     lefteye_r = []
@@ -206,7 +225,7 @@ if __name__ == "__main__":
 
     '''
     #test
-    my_point = [0.5,0.0,0.0]
+    my_point = [9.0,0.0,2.0]
     the_angles = robot.compute_yaw_pitch_for_given_point(my_point)
     val = robot.get_actuator_positions_for_a_given_yaw_pitch(the_angles)
     if val[0] == 1:
@@ -221,31 +240,32 @@ if __name__ == "__main__":
             orientation_righteye = np.quaternion(orn_righteye[3], orn_righteye[0], orn_righteye[1], orn_righteye[2])
     # end of test
     '''
+
     #robot.plot_interpolator_datapoints()
     #robot.compare_actuator_values()
     #interp_val = generate_interpolated_actuator_values()
     #plot_interpolated_lefteye(interp_val)
     #plot_interpolated_righteye(interp_val)
-    move_in_yaw(120.0)
-
+    #move_in_yaw(120.0)
+    move_x_and_z(9.0,0.0,2.0)
 
     while (1):
         #robot.UpdManCtrl()
         #robot.UpdManCtrl_new()
         #robot.UpdManCtrl_test()
-
         for i in angle_pos_list:
-            robot.move_eyes_to_pos(i[4:])
+            #robot.move_eyes_to_pos(i[4:8])
+            collide, l_orn, right_orn = robot.move_eyes_to_position_and_return_orn(i[4:8])
+            if collide == 0:
+                i.append(l_orn)
+                i.append(right_orn)
+            '''
             q, state = robot.GetLinkOrientationWCS_test("left_eye_joint")
             print("quat = {}".format(q))
             print("Angles = {}".format(i[:4]))
             print("Angles = {} - Rotation of Left eye q {}".format(i[:4],q))
             print("State = {}".format(state))
-        '''
-        k = cv2.waitKey(0)
-        if k == ord('q'):
-            break
-        '''
+            '''
 
         keys = robot.GetKeyEvents()
         if 'c' in keys:
@@ -256,4 +276,5 @@ if __name__ == "__main__":
             quit
             break
         #robot.final_pose()
+
     robot.Cleanup()
