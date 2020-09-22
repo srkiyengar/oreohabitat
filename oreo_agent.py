@@ -66,8 +66,10 @@ def create_sensor(orientation=[0.0, 0.0, 0.0], position=[0.0, 0.0, 0.0], sensor_
 
 def setup_sim_and_sensors():
     # left sensor corresponds to left eye which is on the right side
-    left_rgb_sensor = create_sensor(position=[eye_seperation / 2, 0, 0], sensor_uuid="left_rgb_sensor")
-    right_rgb_sensor = create_sensor(position=[-eye_seperation / 2, 0, 0], sensor_uuid="right_rgb_sensor")
+    #left_rgb_sensor = create_sensor(position=[eye_seperation / 2, 0, 0], sensor_uuid="left_rgb_sensor")
+    #right_rgb_sensor = create_sensor(position=[-eye_seperation / 2, 0, 0], sensor_uuid="right_rgb_sensor")
+    left_rgb_sensor = create_sensor(position=[-eye_seperation / 2, 0, 0], sensor_uuid="left_rgb_sensor")
+    right_rgb_sensor = create_sensor(position=[eye_seperation / 2, 0, 0], sensor_uuid="right_rgb_sensor")
     depth_sensor = create_sensor(sensor_uuid="depth_sensor", camera_type="D")
 
     # agent configuration has the sensor_specifications objects as a list
@@ -215,14 +217,23 @@ def verge_sensors_to_midpoint_depth(my_agent, my_sim, my_robot):
     my_point = ((rotatation_matrix_from_Pybullet_to_Habitat().dot(my_point)).flatten()).tolist()
     # move oreo eyes to the point in pybullet to detect collision
     the_angles = my_robot.compute_yaw_pitch_for_given_point(my_point)
+    print("verge_sensors_to_midpoint: Target Angles : Left eye yaw = {}, pitch = {}, Right eye yaw = {}, \
+        pitch = {}".format(the_angles[0], the_angles[1], the_angles[2], the_angles[3]))
     val = my_robot.get_actuator_positions_for_a_given_yaw_pitch(the_angles)
     if val[0] == 1:
         a_pos = val[1:]
-
         collision, lefteye_orn, righteye_orn = my_robot.move_eyes_to_position_and_return_orn(a_pos)
+        R = rotatation_matrix_from_Habitat_to_Pybullet()
+        q1 = quaternion.from_rotation_matrix(R)
+        S = rotatation_matrix_from_Pybullet_to_Habitat()
+        q2 = quaternion.from_rotation_matrix(S)
+        left_sensor = (q1*lefteye_orn)*q2
+        right_sensor = (q1*righteye_orn)*q2
+
         if collision == 0:
             depth_sensor = quaternion.from_rotation_vector([0.0, 0.0, 0.0])
-            sensor_rot = [lefteye_orn, righteye_orn, depth_sensor]
+            #sensor_rot = [lefteye_orn, righteye_orn, depth_sensor]
+            sensor_rot = [left_sensor, right_sensor, depth_sensor]
             rotate_sensor_wrt_habitat_frame(my_agent, sensor_rot)
             return
         else:
@@ -252,6 +263,7 @@ def verge_sensors_to_point(my_agent, my_robot, my_p):
         q2 = quaternion.from_rotation_matrix(S)
         left_sensor = (q1*lefteye_orn)*q2
         right_sensor = (q1*righteye_orn)*q2
+
         if collision == 0:
             depth_sensor = quaternion.from_rotation_vector([0.0, 0.0, 0.0])
             sensor_rot = [left_sensor, right_sensor, depth_sensor]
@@ -590,7 +602,7 @@ def compute_yaw_pitch_from_orientation(left_quat, right_quat):
     '''
     my_rot_matrix_left = quaternion.as_rotation_matrix(left_quat)
     yp1 = oreo.compute_yaw_pitch_from_vector(my_rot_matrix_left[:, 0])
-    print("New x-unit vector = {}".format(my_rot_matrix_left[:, 0]))
+    print("Compute_yaw_pitch_from_orientation: New x-unit vector = {}".format(my_rot_matrix_left[:, 0]))
     # Right eye
     my_rot_matrix_right = quaternion.as_rotation_matrix(right_quat)
     yp2 = oreo.compute_yaw_pitch_from_vector(my_rot_matrix_right[:, 0])
@@ -758,7 +770,7 @@ def display_image(oreo_sim):
     if display == 'l':
         cv2.imshow("Left_eye", lefteye_image)
     else:
-        cv2.imshow("stereo_pair", stereo_image)
+        cv2.imshow("Left - Right Stereo pair", stereo_image)
         cv2.imshow("depth", depth_image)
 
     return
@@ -841,7 +853,7 @@ def look_around(my_agent, my_sim, my_robot, type = "a"):
                                                     sensors_pos_orn['right_rgb_sensor'].rotation)
             print("look_around: At: Left eye yaw = {}, pitch = {}, Right eye yaw = {}, pitch = {}".format(
                 ypl[0], ypl[1], ypr[0], ypr[1]))
-            my_p = [0.0, 0.15, -0.3]
+            my_p = [-2.0, 0.25, -10.0]
             verge_sensors_to_point(my_agent, my_robot, my_p)
             scene_depth, res = get_depth(my_sim)
             center_x = int(res.x / 2)

@@ -1021,7 +1021,7 @@ class Oreo_Robot(object):
         return
 
     def compute_yaw_pitch_for_given_point(self, given_p):
-        print("computing yaw, pitch for point x = {}, y = {}, z = {} ".format(given_p[0], given_p[1], given_p[2]))
+        #print("computing yaw, pitch for point x = {}, y = {}, z = {} ".format(given_p[0], given_p[1], given_p[2]))
         the_point = np.array(given_p)
 
         #idx1 = self.jointDict["left_eye_joint"]
