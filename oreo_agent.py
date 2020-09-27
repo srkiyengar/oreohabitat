@@ -4,6 +4,7 @@ import quaternion
 import sys
 import cv2
 import oreo
+import time
 
 
 
@@ -251,27 +252,32 @@ def verge_sensors_to_point(my_agent, my_robot, my_p):
     my_point = ((rotatation_matrix_from_Pybullet_to_Habitat().dot(my_point)).flatten()).tolist()
     # move oreo eyes to the point in pybullet to detect collision
     the_angles = my_robot.compute_yaw_pitch_for_given_point(my_point)
-    print("Verge_to_point: Target Angles : Left eye yaw = {}, pitch = {}, Right eye yaw = {}, pitch = {}".
-          format(the_angles[0],the_angles[1], the_angles[2],the_angles[3]))
+    print("Verge_to_point {}: Target Angles : Left eye yaw = {}, pitch = {}, Right eye yaw = {}, pitch = {}".
+          format(my_p, the_angles[0],the_angles[1], the_angles[2],the_angles[3]))
     val = my_robot.get_actuator_positions_for_a_given_yaw_pitch(the_angles)
     if val[0] == 1:
         a_pos = val[1:]
         collision, lefteye_orn, righteye_orn = my_robot.move_eyes_to_position_and_return_orn(a_pos)
+        yp_left, yp_right = compute_yaw_pitch_from_orientation(lefteye_orn, righteye_orn)
+        print("Verge_to_point {}: Determined by PyBullet: Left eye yaw = {}, pitch = {}, Right eye yaw = {}, \
+            pitch = {}".format(my_p,yp_left[0],yp_left[1], yp_right[0], yp_right[1]))
+        #lefteye_orn = quaternion.from_rotation_vector([0.0,0.0,-np.pi/4.0])
         R = rotatation_matrix_from_Habitat_to_Pybullet()
         q1 = quaternion.from_rotation_matrix(R)
         S = rotatation_matrix_from_Pybullet_to_Habitat()
         q2 = quaternion.from_rotation_matrix(S)
         left_sensor = (q1*lefteye_orn)*q2
         right_sensor = (q1*righteye_orn)*q2
-
         if collision == 0:
+            print("Verge_to_point: Actuator positions = {}".format(a_pos))
             depth_sensor = quaternion.from_rotation_vector([0.0, 0.0, 0.0])
             sensor_rot = [left_sensor, right_sensor, depth_sensor]
-            yp_left, yp_right = compute_yaw_pitch_from_orientation(lefteye_orn, righteye_orn)
-            print("Verge_to_point: Actuator positions = {}".format(a_pos))
-            print ("Verge_to_point: Achieved: Left eye yaw = {}, pitch = {}, Right eye yaw = {}, pitch = {}".format(yp_left[0],
-                   yp_left[1], yp_right[0], yp_right[1]))
+
+            yp_left, yp_right = compute_yaw_pitch_in_habitat(left_sensor, right_sensor)
+            print("Verge_to_point: Calculated from Habitat rotation: Left eye yaw = {},pitch = {},\
+               Right eye yaw = {}, pitch = {}".format(yp_left[0], yp_left[1], yp_right[0], yp_right[1]))
             # print(sensor_rot)
+
             rotate_sensor_wrt_habitat_frame(my_agent, sensor_rot)
             return
 
@@ -282,28 +288,82 @@ def verge_sensors_to_point(my_agent, my_robot, my_p):
         print("verge_sensors_to_point:Interpolator functions not computed for depth {}".format(my_p))
         return
 
-def test_rotation():
-    '''
-    R1 = np.zeros((3, 3))
-    R1[0, 2] = -1
-    R1[1, 1] = 1
-    R1[2, 0] = 1
+def test_agent_axes(my_sim, my_agent):
+    global display
 
+    display = 'l'
+    #agent at default position
+    my_agent_state = my_agent.get_state()
+    original_agent_state = my_agent_state
+    agent_orientation = my_agent_state.rotation
+    agent_orientation = quaternion.as_rotation_vector(agent_orientation)
+    left_sensor_orn = my_agent_state.sensor_states["left_rgb_sensor"].rotation
+    rot_vec = quaternion.as_rotation_vector(left_sensor_orn)
+    rot_mat = quaternion.as_rotation_matrix(left_sensor_orn)
+    print("test_agent_axes: Default left_sensor_vector = {}".format(rot_mat[:,2]))
+    display_image(my_sim)
+    while (1):
+        k = cv2.waitKey(0)
+        if k == ord('q'):
+            break
 
-    R = rotatation_matrix_from_Habitat_to_Pybullet().dot(R1)
-    print("R = {}".format(R))
+    rotate_agent_in_one_axis(my_agent,45, axis = 'y')
+    my_agent_state = my_agent.get_state()
+    agent_orientation = my_agent_state.rotation
+    org_orientation = original_agent_state.rotation
+    left_sensor_orn = my_agent_state.sensor_states["left_rgb_sensor"].rotation
+    rot_mat = quaternion.as_rotation_matrix(left_sensor_orn)
+    display_image(my_sim, "Left 45")
+    while (1):
+        k = cv2.waitKey(0)
+        if k == ord('q'):
+            break
+    print("test_agent_axes: at Ry(45) left_sensor_vector = {}".format(rot_mat[:, 2]))
 
-    R2 = rotatation_matrix_from_Habitat_to_Pybullet()
-    R3 = R2.dot(R1)
-    print ("R3 = {}".format(R3))
-    '''
-    q1 = quaternion.from_rotation_vector([0.0, 0.0, -np.pi/2])  # Pybullet frame
-    q1R = quaternion.as_rotation_matrix(q1)
-    QR = rotatation_matrix_from_Habitat_to_Pybullet().dot(q1R)
-    q2 = quaternion.from_rotation_vector([-np.pi/2, 0.0, 0.0])  # habitat frame
-    q2R = quaternion.as_rotation_matrix(q2)
+    rotate_agent_in_one_axis(my_agent, -45, axis='x')
+    my_agent_state = my_agent.get_state()
+    agent_orientation = my_agent_state.rotation
+    org_orientation = original_agent_state.rotation
+    left_sensor_orn = my_agent_state.sensor_states["left_rgb_sensor"].rotation
+    rot_mat = quaternion.as_rotation_matrix(left_sensor_orn)
+    display_image(my_sim, "Left 45,45")
+    while (1):
+        k = cv2.waitKey(0)
+        if k == ord('q'):
+            break
+    print("test_agent_axes: at Ry,x(45,45) left_sensor_vector = {}".format(rot_mat[:, 2]))
+    rotate_agent_in_one_axis(my_agent, 45, axis='x')
+
+    rotate_agent_in_one_axis(my_agent, 45, axis='y')
+    my_agent_state = my_agent.get_state()
+    agent_orientation = my_agent_state.rotation
+    agent_orientation = quaternion.as_rotation_vector(agent_orientation)
+    left_sensor_orn = my_agent_state.sensor_states["left_rgb_sensor"].rotation
+    rot_vec = quaternion.as_rotation_vector(left_sensor_orn)
+    rot_mat = quaternion.as_rotation_matrix(left_sensor_orn)
+    display_image(my_sim, "Left 90")
+    while (1):
+        k = cv2.waitKey(0)
+        if k == ord('q'):
+            break
+    print("test_agent_axes: At Ry(90) left_sensor_vector = {}".format(rot_mat[:, 2]))
+
+    rotate_agent_in_one_axis(my_agent, 45, axis='y')
+    my_agent_state = my_agent.get_state()
+    agent_orientation = my_agent_state.rotation
+    agent_orientation = quaternion.as_rotation_vector(agent_orientation)
+    left_sensor_orn = my_agent_state.sensor_states["left_rgb_sensor"].rotation
+    rot_vec = quaternion.as_rotation_vector(left_sensor_orn)
+    rot_mat = quaternion.as_rotation_matrix(left_sensor_orn)
+    print("test_agent_axes: At Ry(135) left_sensor_vector = {}".format(rot_mat[:, 2]))
+    display_image(my_sim, "Left 135")
+    while (1):
+        k = cv2.waitKey(0)
+        if k == ord('q'):
+            break
+    cv2.destroyAllWindows()
+    my_agent.set_state(original_agent_state)
     return
-
 
 def yaw_pitch_roll_rotation(my_agent, my_yaw=15, my_pitch=10, my_roll=5):
     '''
@@ -389,14 +449,14 @@ def rotate_roll(my_agent, angle=5):
     :param angle: in degrees (if X degree roll is specified by Pybullet, it should be -X for the function
     :return:
     '''
-    rotate_agent_in_one_axis(my_agent, angle, axis='x')
+    rotate_agent_in_one_axis(my_agent, angle, axis='z')
     return
 
 def rotate_pitch(my_agent, angle=10):
     '''
     Rotating +ive angle (CCW) which is like lifting the chin up.
     Since 0 Pitch is aligned to the y-axis of the habitat, to be consistent with Pybullet pitch,
-    to obtain X degree pitch as measured by Pybullet will require the angle to be set to -X.
+    when set to D degree pitch as measured in the Pybullet side will be 90-D.
     :param my_agent:
     :param angle: in degree
     :return:
@@ -590,14 +650,45 @@ def relative_move_and_rotate_agent(my_agent, rel_rotation, rel_move=[0.0, 0.0, 0
             D.T
 
     my_agent.set_state(my_agent_state, infer_sensor_states=False)
+
     return
 
+def compute_yaw_pitch_in_habitat(left_quat, right_quat):
+    '''
+    This function is incorrect and needs to re-written.
+    :param left_quat: numpy quaternion (w,x,y,z) for left sensor
+    :param right_quat: numpy quaternion for right sensor
+    :return: tuple - left yaw, pitch, right yaw, pitch in degrees
+    '''
+
+    my_rot_matrix_left = quaternion.as_rotation_matrix(left_quat)
+    print("Compute_yaw_pitch_from_orientation_for_habitat: vector direction of Left sensor = {}".
+          format(my_rot_matrix_left[:, 2]))
+    yp1 = compute_yaw_pitch_of_sensor(my_rot_matrix_left[:, 2])
+
+    # Right eye
+    my_rot_matrix_right = quaternion.as_rotation_matrix(right_quat)
+    yp2 = compute_yaw_pitch_of_sensor(my_rot_matrix_right[:, 2])
+    return yp1, yp2
+
+def compute_yaw_pitch_of_sensor(uvector):
+    rx = uvector[0]
+    ry = uvector[1]
+    rz = uvector[2]
+
+    pitch = np.degrees(np.arccos(-ry))
+    rxz = np.sqrt(rx * rx + rz * rz)
+    if rxz != 0:
+        yaw = np.degrees(np.arcsin(rx/rxz))
+    else:
+        yaw = 0
+    return (yaw, pitch)
 
 def compute_yaw_pitch_from_orientation(left_quat, right_quat):
     '''
-
-    :param left_quat: numpy quaternion (w,x,y,z) for left sensor
-    :param right_quat: numpy quaternion for right sensor
+    Calculation only true for Pybullet frame +ive x values
+    :param left_quat: numpy quaternion (w,x,y,z) for left eye
+    :param right_quat: numpy quaternion for right eye
     :return: tuple - left yaw, pitch, right yaw, pitch in degrees
     '''
     my_rot_matrix_left = quaternion.as_rotation_matrix(left_quat)
@@ -642,6 +733,29 @@ def compute_rotation_for_a_given_yaw_pitch(given_yaw, given_pitch, given_roll=0.
         roll_axis_angle = np.radians(given_roll)*v1
         quat2 = quaternion.from_rotation_vector(roll_axis_angle)
         return quat1*quat2
+
+
+def compute_quat_for_a_given_point_in_habitat(a_point):
+    '''
+    This uses the point to calculate a rotation of the current -z axis to the new unit vector.
+    :a_point: list
+    :return: quaternion
+    '''
+
+
+    uvector = np.array(a_point)
+    v1 = uvector/np.linalg.norm(uvector)
+
+    v2 = np.array([0.0, 0.0, -1.0])
+    # my_axis is v2 cross v1
+    my_axis = np.cross(v2, v1)
+    my_axis = my_axis / np.linalg.norm(my_axis)
+    my_angle = np.arccos(np.dot(v1, v2))
+    my_axis_angle = my_angle * my_axis
+    quat = quaternion.from_rotation_vector(my_axis_angle)
+    rot_mat = quaternion.as_rotation_matrix(quat)
+    print("Point {} is quat {}".format(a_point,quat))
+    return quat
 
 
 def move_y_and_z(my_robot, x_mid=0.0, y_val=2.0, z_val=-9.0):  #move_x_and_z(9.0,0.0,2.0) where z = -9.0 and y =2.0
@@ -756,8 +870,10 @@ def get_sensor_observations(oreo_sim):
 
     return stereo_pair, depth
 
-def display_image(oreo_sim):
+
+def display_image(oreo_sim, addon=""):
     global toggle
+
 
     if toggle == 1:
         cv2.destroyAllWindows()
@@ -768,9 +884,9 @@ def display_image(oreo_sim):
     righteye_image = stereo_image[:,512:,:]
 
     if display == 'l':
-        cv2.imshow("Left_eye", lefteye_image)
+        cv2.imshow("Left_eye"+addon, lefteye_image)
     else:
-        cv2.imshow("Left - Right Stereo pair", stereo_image)
+        cv2.imshow("Left - Right Stereo pair"+addon, stereo_image)
         cv2.imshow("depth", depth_image)
 
     return
@@ -847,13 +963,22 @@ def look_around(my_agent, my_sim, my_robot, type = "a"):
         k = cv2.waitKey(0)
         if k == ord('q'):
             break
-        elif k == ord('x'):
+        elif k == ord('x') or k == ord('y') or k == ord('w') or k == ord('z') :
+            '''
             _, _, sensors_pos_orn = get_agent_sensor_position_orientations(my_agent)
             ypl,ypr = compute_yaw_pitch_from_orientation(sensors_pos_orn['left_rgb_sensor'].rotation,
                                                     sensors_pos_orn['right_rgb_sensor'].rotation)
-            print("look_around: At: Left eye yaw = {}, pitch = {}, Right eye yaw = {}, pitch = {}".format(
+            print("look_around: Before move: Left eye yaw = {}, pitch = {}, Right eye yaw = {}, pitch = {}".format(
                 ypl[0], ypl[1], ypr[0], ypr[1]))
-            my_p = [-2.0, 0.25, -10.0]
+            '''
+            if k == ord('x'):
+                my_p = [-3.0, 2.0, -10.0]
+            elif k == ord('y'):
+                my_p = [3.0, 2.0, -10.0]
+            if k == ord('w'):
+                my_p = [-3.0, -2.0, -10.0]
+            elif k == ord('z'):
+                my_p = [3.0, -2.0, -10.0]
             verge_sensors_to_point(my_agent, my_robot, my_p)
             scene_depth, res = get_depth(my_sim)
             center_x = int(res.x / 2)
@@ -924,10 +1049,12 @@ def look_around(my_agent, my_sim, my_robot, type = "a"):
             rotate_pitch(my_agent, angle=40)
             display_image(my_sim)
         elif k == ord('3'):
-            logy_latp_type_rotation(my_agent)
+            rotate_roll(my_agent)
             display_image(my_sim)
         elif k == ord('4'):
-            latp_logy_type_rotation(my_agent)
+            d = quaternion.from_rotation_vector([0.0, 0.0, 0.0])
+            move = [delta_move, 0.0, 0.0]
+            relative_move_and_rotate_agent(my_agent, d, move)
             display_image(my_sim)
         elif k == ord('5'):
             yaw_pitch_roll_rotation(my_agent)
@@ -954,7 +1081,7 @@ if __name__ == "__main__":
 
     print("The system version is {}".format(sys.version))
 
-    #test_rotation()
+
     '''
     R = rotatation_matrix_from_Habitat_to_Pybullet()
     my_vec = [0.2, -0.3, 0.5]
@@ -998,6 +1125,7 @@ if __name__ == "__main__":
     # get and save agent state
     # Not done
     #test_oreo_agent(o_agent, the_sim)
+    #test_agent_axes(the_sim, o_agent)
     look_around(o_agent, the_sim, oreo_robot, type="l")
 
 
