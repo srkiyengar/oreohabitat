@@ -209,11 +209,8 @@ def verge_sensors(my_angle, my_agent, verge):
 
 
 def verge_sensors_to_midpoint_depth(my_agent, my_sim, my_robot):
-    scene_depth, res = get_depth(my_sim)
-    center_x = int(res.x / 2)
-    center_y = int(res.x / 2)
-    my_z = -scene_depth[center_x, center_y]
 
+    my_z = -(get_depth_at_center(my_sim))
     my_point = np.array([[0.0], [0.0], [my_z]])
     my_point = ((rotatation_matrix_from_Pybullet_to_Habitat().dot(my_point)).flatten()).tolist()
     # move oreo eyes to the point in pybullet to detect collision
@@ -235,7 +232,7 @@ def verge_sensors_to_midpoint_depth(my_agent, my_sim, my_robot):
             depth_sensor = quaternion.from_rotation_vector([0.0, 0.0, 0.0])
             #sensor_rot = [lefteye_orn, righteye_orn, depth_sensor]
             sensor_rot = [left_sensor, right_sensor, depth_sensor]
-            rotate_sensor_wrt_habitat_frame(my_agent, sensor_rot)
+            rotate_sensor_wrt_agent_frame(my_agent, sensor_rot)
             return
         else:
             print("verge_sensors_to_midpoint_depth: Collision for depth {}".format(my_z))
@@ -245,40 +242,54 @@ def verge_sensors_to_midpoint_depth(my_agent, my_sim, my_robot):
         return
 
 
-def verge_sensors_to_point(my_agent, my_robot, my_p):
+def verge_sensors_to_point_in_agent_frame(my_agent, my_robot, my_p):
 
     my_point = np.array(my_p)
     my_point.shape = (3,1)
     my_point = ((rotatation_matrix_from_Pybullet_to_Habitat().dot(my_point)).flatten()).tolist()
     # move oreo eyes to the point in pybullet to detect collision
     the_angles = my_robot.compute_yaw_pitch_for_given_point(my_point)
+    '''
     print("Verge_to_point {}: Target Angles : Left eye yaw = {}, pitch = {}, Right eye yaw = {}, pitch = {}".
           format(my_p, the_angles[0],the_angles[1], the_angles[2],the_angles[3]))
+    '''
     val = my_robot.get_actuator_positions_for_a_given_yaw_pitch(the_angles)
     if val[0] == 1:
         a_pos = val[1:]
         collision, lefteye_orn, righteye_orn = my_robot.move_eyes_to_position_and_return_orn(a_pos)
+        '''
         yp_left, yp_right = compute_yaw_pitch_from_orientation(lefteye_orn, righteye_orn)
-        print("Verge_to_point {}: Determined by PyBullet: Left eye yaw = {}, pitch = {}, Right eye yaw = {}, \
-            pitch = {}".format(my_p,yp_left[0],yp_left[1], yp_right[0], yp_right[1]))
-        #lefteye_orn = quaternion.from_rotation_vector([0.0,0.0,-np.pi/4.0])
+        print("Verge_to_point {}: Determined by PyBullet: Left eye yaw = {}, pitch = {}, Right eye yaw = {}, pitch = {}".format(my_p,yp_left[0],yp_left[1], yp_right[0], yp_right[1]))
+        '''
         R = rotatation_matrix_from_Habitat_to_Pybullet()
         q1 = quaternion.from_rotation_matrix(R)
         S = rotatation_matrix_from_Pybullet_to_Habitat()
         q2 = quaternion.from_rotation_matrix(S)
+        '''
+        L = quaternion.as_rotation_matrix(lefteye_orn)
+        print("Rotation in PyB frame = {}".format(L))
+        V = R.dot(L)
+        print("Verge_to_point: Rotation in Agent frame = {}".format(V))
+        U = V.dot(S)
+        print("Verge_to_point: Rotation in Agent frame rotated = {}".format(U))
+        W = U*rotatation_matrix_from_habitat_to_sensor()
+        print("Verge_to_point: Sensor= {}".format(W))
+        '''
         left_sensor = (q1*lefteye_orn)*q2
         right_sensor = (q1*righteye_orn)*q2
+
+
         if collision == 0:
-            print("Verge_to_point: Actuator positions = {}".format(a_pos))
+            #print("Verge_to_point: Actuator positions = {}".format(a_pos))
             depth_sensor = quaternion.from_rotation_vector([0.0, 0.0, 0.0])
             sensor_rot = [left_sensor, right_sensor, depth_sensor]
-
+            '''
             yp_left, yp_right = compute_yaw_pitch_in_habitat(left_sensor, right_sensor)
             print("Verge_to_point: Calculated from Habitat rotation: Left eye yaw = {},pitch = {},\
                Right eye yaw = {}, pitch = {}".format(yp_left[0], yp_left[1], yp_right[0], yp_right[1]))
             # print(sensor_rot)
-
-            rotate_sensor_wrt_habitat_frame(my_agent, sensor_rot)
+            '''
+            rotate_sensor_wrt_agent_frame(my_agent,sensor_rot)
             return
 
         else:
@@ -807,6 +818,38 @@ def rotatation_matrix_from_Pybullet_to_Habitat():
 
     return R
 
+def rotatation_matrix_from_habitat_to_sensor():
+    R = np.zeros((3, 3))
+    R[0, 0] = -1
+    R[1, 1] = -1
+    R[2, 1] = -1
+    return R
+
+def rotate_from_pybullet_eyes_to_habitat_sensors(left_q, right_q):
+
+    '''
+    I need to figure this one out at leisure - This function should produce the same results
+    as the following operations. if R is the Rotation of the
+    pybullet eye from the 3 DOF Head/neck and H is the rotation of the the H-Agent frame to the
+    Pybullet Head/neck frame when the eye axis and direction of viewing of the sensor are
+    aligned, and Hinv is the inverse of the rotation H, the rotation,
+    H*R*Hinv produces the rotation for the sensor with respct to a fixed frame.
+    In other words, from the yaw pitch of the eyes from it normal position, we get the
+    :param left_q:
+    :param right_q:
+    :return:
+    '''
+    R1 = quaternion.as_rotation_matrix(left_q)
+    R1 = R1.T
+    R_left = (R1.dot(rotatation_matrix_from_Pybullet_to_Habitat())).dot(rotatation_matrix_from_habitat_to_sensor())
+
+    R2 = quaternion.as_rotation_matrix(right_q)
+    R2 = R2.T
+    R_right = (R2.dot(rotatation_matrix_from_Pybullet_to_Habitat())).dot(rotatation_matrix_from_habitat_to_sensor())
+
+    return quaternion.from_rotation_matrix(R_left),quaternion.from_rotation_matrix(R_right)
+
+
 
 def homogenous_transform(R, vect):
     '''
@@ -837,11 +880,39 @@ def inverse_homogenous_transform(H):
     R = R.T
     origin = -R.dot(origin)
     return homogenous_transform(R, list(origin.flatten()))
-
+'''
 def get_depth(oreo_sim):
     depth_sensor = oreo_sim._sensors['depth_sensor']
     depth_sensor.draw_observation()
-    return depth_sensor.get_observation(), depth_sensor._sensor_object.framebuffer_size
+    obs = depth_sensor.get_observation()
+    size = depth_sensor._sensor_object.framebuffer_size
+    return obs, size
+'''
+
+def get_depth_at_center(oreo_sim, loc = 'c'):
+
+    depth_sensor = oreo_sim._sensors['depth_sensor']
+    depth_sensor.draw_observation()
+    obs = depth_sensor.get_observation()
+    dim_size = depth_sensor._sensor_object.framebuffer_size
+    if loc == 'c':
+        loc_x = int(dim_size/2)
+        loc_y = int(dim_size/2)
+    elif loc == 'trc':    #top left quadrant center
+        loc_x = int(dim_size/4)
+        loc_y = int(3*dim_size/4)
+    elif loc == 'trc':    #top right quadrant center
+        loc_x = int(dim_size/4)
+        loc_y = int(dim_size/4)
+    elif loc == 'blc':
+        loc_x = int(3*dim_size/4)
+        loc_y = int(dim_size/4)
+    elif loc == 'brc':
+        loc_x = int(3*dim_size/4)
+        loc_y = int(3*dim_size/4)
+
+    dep = obs[loc_x, loc_y]
+    return dep
 
 
 def get_sensor_observations(oreo_sim):
@@ -971,21 +1042,30 @@ def look_around(my_agent, my_sim, my_robot, type = "a"):
             print("look_around: Before move: Left eye yaw = {}, pitch = {}, Right eye yaw = {}, pitch = {}".format(
                 ypl[0], ypl[1], ypr[0], ypr[1]))
             '''
+            a_state = my_agent.get_state()
+            r1 = quaternion.as_rotation_matrix(a_state.rotation)  # rotation from Habitat to Agent wrt Habitat frame
+            t1 = list(a_state.position)  # translation from Habitat to Agent wrt Habitata frame
+            my_h = homogenous_transform(r1,t1)
             if k == ord('x'):
-                my_p = [-3.0, 2.0, -10.0]
+                my_p = [-1.0, 2.0, -10.0]
             elif k == ord('y'):
-                my_p = [3.0, 2.0, -10.0]
-            if k == ord('w'):
-                my_p = [-3.0, -2.0, -10.0]
+                my_p = [1.0, 2.0, -10.0]
+            elif k == ord('w'):
+                my_p = [-1.0, -2.0, -10.0]
             elif k == ord('z'):
-                my_p = [3.0, -2.0, -10.0]
-            verge_sensors_to_point(my_agent, my_robot, my_p)
+                my_p = [1.0, -2.0, -10.0]
+            verge_sensors_to_point_in_agent_frame(my_agent, my_robot, my_p)
+            '''
             scene_depth, res = get_depth(my_sim)
             center_x = int(res.x / 2)
             center_y = int(res.x / 2)
             my_z = -scene_depth[center_x, center_y]
             print("look_around: the depth is {}".format(my_z))
+            '''
             display_image(my_sim)
+            loc = my_p+[1]
+            obs_point = np.dot(my_h,loc)
+            print("Looking at Point {}".format(obs_point[0:3]) )
         elif k == ord('f'):  # view while agent moving towards the scene
             d = quaternion.from_rotation_vector([0.0, 0.0, 0.0])
             move = [0.0, 0.0, -delta_move]

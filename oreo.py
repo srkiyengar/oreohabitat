@@ -472,14 +472,14 @@ class Oreo_Robot(object):
         pos = [0] * self.actJointNum
 
         if (self.k % 2) == 0:
-            pos[3] = -0.0008977884881081077
-            pos[4] = -0.01540386162824471
-            pos[5] = -0.0017827516943691689
-            pos[6] = -0.014753888804415135
+            pos[3] = -0.005984239278283204
+            pos[4] = -0.002923749939091032
+            pos[5] = -0.006168701490229214
+            pos[6] = -0.0027740327135158636
             print("Actuator Positions = {}".format(pos))
             self.ControlActJoints(pos)
             self.actJointPos = pos
-            time.sleep(0.2)
+            time.sleep(0.4)
             # Left eye
             orn_lefteye = self.GetLinkOrientationWCS("left_eye_joint")
             some = self.GetLinkPosOrn("left_eye_joint")
@@ -488,6 +488,7 @@ class Oreo_Robot(object):
             orientation_lefteye = np.quaternion(orn_lefteye[3], orn_lefteye[0], orn_lefteye[1], orn_lefteye[2])
             orientation_lefteye2 = np.quaternion(orn_lefteye2[3], orn_lefteye2[0], orn_lefteye2[1], orn_lefteye2[2])
             my_axis_angle_lefteye = quaternion.as_rotation_vector(orientation_lefteye)
+            print("*****UpdManCtrl_new: Left Eye Quaternion = {}".format(orientation_lefteye))
             rotation_angle_lefteye = np.linalg.norm(my_axis_angle_lefteye)
             rotation_axis_lefteye = my_axis_angle_lefteye / rotation_angle_lefteye
             my_angles_left = np.degrees(quaternion.as_spherical_coords(orientation_lefteye))
@@ -590,7 +591,9 @@ class Oreo_Robot(object):
     ##
 
     def move_eyes_to_position_and_return_orn(self,new_pos):
+
         pos = [0] * self.actJointNum
+        #pos[1] = 0.7
         pos[3] = new_pos[0]
         pos[4] = new_pos[1]
         pos[5] = new_pos[2]
@@ -604,15 +607,17 @@ class Oreo_Robot(object):
                 p.stepSimulation()
         else:
             self.ControlActJoints(pos)
-            time.sleep(0.3)
+            time.sleep(0.1)
         self.actJointPos = pos
         collide = len(p.getContactPoints())
 
-        orn_lefteye = self.GetLinkOrientationWCS("left_eye_joint")
+        #orn_lefteye = self.GetLinkOrientationWCS("left_eye_joint")
+        orn_lefteye = self.GetLinkOrientation("left_eye_joint")
         # convert to numpy quaternion (w,x,y,z) w is the real part.
         orientation_lefteye = np.quaternion(orn_lefteye[3], orn_lefteye[0], orn_lefteye[1], orn_lefteye[2])
         # Right eye
-        orn_righteye = self.GetLinkOrientationWCS("right_eye_joint")  # as a list in [x,y,z,w] order
+        #orn_righteye = self.GetLinkOrientationWCS("right_eye_joint")  # as a list in [x,y,z,w] order
+        orn_righteye = self.GetLinkOrientation("right_eye_joint")  # as a list in [x,y,z,w] order
         # convert to numpy array quaternion (w,x,y,z) - w is the real part
         orientation_righteye = np.quaternion(orn_righteye[3], orn_righteye[0], orn_righteye[1],
                                              orn_righteye[2])
@@ -659,7 +664,9 @@ class Oreo_Robot(object):
     def generate_actuator_positions(self, left, right, oreo_eye):
         # right, left are actuator pairs 3,4 or 5,6 - Right and left from oreo's perspective (not viewer)
         # 3,4 control yaw and pitch of oreo's left eye  while 5,6 for the right eye
-        # orea_eye can be either " left_eye_joint" or "right_eye_joint"
+        # oreo_eye can be either " left_eye_joint" or "right_eye_joint"
+        # the GetLinkOrientationWCS can be used only when pos[0], [1] [2] are used.
+        # we are looking for relative position of the eye wrt head/neck orientation
         total_count = 0
         contact_count = 0
         contactless_count = 0
@@ -1410,6 +1417,27 @@ class Oreo_Robot(object):
             logging.error("Unknown name input to GetLinkPosOrn")
             return []
         return [pos, orn]
+
+    def GetLinkOrientation(self, name):
+        '''
+        For eye orientation relative to the head/neck
+        :param name:
+        :return:
+        '''
+
+        # check if given link name (link == joint)
+        if "link" in name:
+            name.replace("link", "joint", 1)
+        idx = self.jointDict[name]
+        # Check link exists
+        if name in self.jointDict:
+            state = p.getLinkState(self.linkage, idx, computeForwardKinematics=True)
+            frame_orientation = p.getDifferenceQuaternion(self.initPosOrn[idx][self.ORN_IDX], state[5])
+            frame_orientation = list(frame_orientation)
+        else:
+            logging.error("GetLinkOrientation")
+            return []
+        return frame_orientation
 
     def GetLinkOrientationWCS(self, name):
 

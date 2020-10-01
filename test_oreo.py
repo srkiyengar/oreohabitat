@@ -251,22 +251,24 @@ if __name__ == "__main__":
 
     while (1):
         #robot.UpdManCtrl()
-        #robot.UpdManCtrl_new()
+        robot.UpdManCtrl_new()
         #robot.UpdManCtrl_test()
+
+        '''
         for i in angle_pos_list:
             #robot.move_eyes_to_pos(i[4:8])
             collide, l_orn, right_orn = robot.move_eyes_to_position_and_return_orn(i[4:8])
             if collide == 0:
                 i.append(l_orn)
                 i.append(right_orn)
-            '''
-            q, state = robot.GetLinkOrientationWCS_test("left_eye_joint")
-            print("quat = {}".format(q))
-            print("Angles = {}".format(i[:4]))
-            print("Angles = {} - Rotation of Left eye q {}".format(i[:4],q))
-            print("State = {}".format(state))
-            '''
+            
+            #q, state = robot.GetLinkOrientationWCS_test("left_eye_joint")
+            #print("quat = {}".format(q))
+            #print("Angles = {}".format(i[:4]))
+            #print("Angles = {} - Rotation of Left eye q {}".format(i[:4],q))
+            #print("State = {}".format(state))
 
+        '''
         keys = robot.GetKeyEvents()
         if 'c' in keys:
             robot.CheckAllCollisions()
