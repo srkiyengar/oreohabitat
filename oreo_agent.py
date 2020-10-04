@@ -4,11 +4,11 @@ import quaternion
 import sys
 import cv2
 import oreo
-import time
 
 
 
-from typing import Any, Dict, List, Union
+
+from typing import List, Union
 
 # pybullet quaternion order x, y, z, w
 # numpy quaternion order w, x, y, z
@@ -30,13 +30,6 @@ class SixDOFPose(object):
     position: np.ndarray = np.zeros(3)
     rotation: Union[np.quaternion, List] = np.quaternion(1, 0, 0, 0)
 
-
-from habitat_sim.utils.common import (
-    quat_from_coeffs,
-    quat_from_magnum,
-    quat_rotate_vector,
-    quat_to_magnum,
-)
 
 
 def create_sensor(orientation=[0.0, 0.0, 0.0], position=[0.0, 0.0, 0.0], sensor_resolution=[512, 512],
