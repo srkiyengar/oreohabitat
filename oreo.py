@@ -787,16 +787,18 @@ class Oreo_Robot(object):
 
 
     # reads the pickled data
-    def read_oreo_yaw_pitch_actuator_data(self):
+    def read_oreo_yaw_pitch_actuator_data(self, filename = ""):
+        if filename == "":
+            filename = self.oreo_scan_data
         try:
-            with open(self.oreo_scan_data, "rb") as f:
+            with open(filename, "rb") as f:
                 my_data = pickle.load(f)
                 # left and right eye [left_actuator,right_actuator,yaw,pitch]
                 self.left_eye_scan_data = my_data[0]
                 self.right_eye_scan_data = my_data[1]
                 return 1
         except IOError as e:
-            print("Failure: Opening pickle file {}".format(self.oreo_scan_data))
+            print("Failure: Opening pickle file {}".format(filename))
             return 0
 
     ##
@@ -818,9 +820,11 @@ class Oreo_Robot(object):
 
 
     # reads the pickled data
-    def read_interpolator_functions(self):
+    def read_interpolator_functions(self, filename =""):
+        if filename == "":
+            filename = self.interpolator_pickle_file
         try:
-            with open(self.interpolator_pickle_file, "rb") as f:
+            with open(filename, "rb") as f:
                 my_interp = pickle.load(f)
                 # left and right eye [left_actuator,right_actuator,yaw,pitch]
                 self.left_eye_interpolator_left = my_interp[0]
@@ -829,7 +833,7 @@ class Oreo_Robot(object):
                 self.right_eye_interpolator_right = my_interp[3]
                 return 1
         except IOError as e:
-            print("Failure: Opening pickle file {}".format(self.interpolator_pickle_file))
+            print("Failure: Opening pickle file {}".format(filename))
             return 0
 
 

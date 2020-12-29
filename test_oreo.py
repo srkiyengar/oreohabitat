@@ -31,6 +31,8 @@ def test_IK(this_robot):
 
 
 '''
+Pybullet - the eyes are looking in the direction of +ive X, and Z is up.
+Habitat - the eyes are looking in the direction of +ive Z and Y is up. 
 Habitatai coordinate frame (x+ive,y+ive,z -ive) is Pybullet's frame (y-ive, z+ive, x+ive)
 A point (x,y,z) in Habitat's frame when rotated by R will provide it in Pybullet's frame
 It is the rotation matrix from Pybullet to Habitatai  row 0 [0 0 -1], row 1 [-1 0 0], row 2 [0,1,0]]
@@ -82,8 +84,8 @@ def generate_interpolated_actuator_values():
     righteye_l_outside_range = 0
     righteye_r_outside_range = 0
 
-    #yaw = np.linspace(-25, 25, 100)
-    yaw = np.linspace(-10, 0, 100)
+    yaw = np.linspace(-25, 25, 100)
+    #yaw = np.linspace(-10, 0, 100)
     pitch = np.linspace(75,125,100)
 
     for i in pitch:
@@ -251,10 +253,10 @@ if __name__ == "__main__":
 
     while (1):
         #robot.UpdManCtrl()
-        robot.UpdManCtrl_new()
+        #robot.UpdManCtrl_new()
         #robot.UpdManCtrl_test()
 
-        '''
+
         for i in angle_pos_list:
             #robot.move_eyes_to_pos(i[4:8])
             collide, l_orn, right_orn = robot.move_eyes_to_position_and_return_orn(i[4:8])
@@ -268,7 +270,7 @@ if __name__ == "__main__":
             #print("Angles = {} - Rotation of Left eye q {}".format(i[:4],q))
             #print("State = {}".format(state))
 
-        '''
+
         keys = robot.GetKeyEvents()
         if 'c' in keys:
             robot.CheckAllCollisions()

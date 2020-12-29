@@ -749,7 +749,6 @@ def compute_quat_for_a_given_point_in_habitat(a_point):
 
     uvector = np.array(a_point)
     v1 = uvector/np.linalg.norm(uvector)
-
     v2 = np.array([0.0, 0.0, -1.0])
     # my_axis is v2 cross v1
     my_axis = np.cross(v2, v1)
@@ -888,21 +887,23 @@ def get_depth_at_center(oreo_sim, loc = 'c'):
     depth_sensor.draw_observation()
     obs = depth_sensor.get_observation()
     dim_size = depth_sensor._sensor_object.framebuffer_size
+    xsize = dim_size.x
+    ysize = dim_size.y
     if loc == 'c':
-        loc_x = int(dim_size/2)
-        loc_y = int(dim_size/2)
+        loc_x = int(xsize/2)
+        loc_y = int(ysize/2)
     elif loc == 'trc':    #top left quadrant center
-        loc_x = int(dim_size/4)
-        loc_y = int(3*dim_size/4)
+        loc_x = int(xsize/4)
+        loc_y = int(3*ysize/4)
     elif loc == 'trc':    #top right quadrant center
-        loc_x = int(dim_size/4)
-        loc_y = int(dim_size/4)
+        loc_x = int(xsize/4)
+        loc_y = int(ysize/4)
     elif loc == 'blc':
-        loc_x = int(3*dim_size/4)
-        loc_y = int(dim_size/4)
+        loc_x = int(3*xsize/4)
+        loc_y = int(ysize/4)
     elif loc == 'brc':
-        loc_x = int(3*dim_size/4)
-        loc_y = int(3*dim_size/4)
+        loc_x = int(3*xsize/4)
+        loc_y = int(3*ysize/4)
 
     dep = obs[loc_x, loc_y]
     return dep
@@ -1059,7 +1060,7 @@ def look_around(my_agent, my_sim, my_robot, type = "a"):
             loc = my_p+[1]
             obs_point = np.dot(my_h,loc)
             print("Looking at Point {}".format(obs_point[0:3]) )
-        elif k == ord('f'):  # view while agent moving towards the scene
+        elif k == ord('f'):  # view while agent moving right
             d = quaternion.from_rotation_vector([0.0, 0.0, 0.0])
             move = [0.0, 0.0, -delta_move]
             relative_move_and_rotate_agent(my_agent, d, move)
