@@ -12,7 +12,7 @@ import matplotlib.image as matimage
 eye_separation = 0.058
 sensor_resolution = [512,512]
 scene = "../multi_agent/data_files/skokloster-castle.glb"
-oreo_sim_path = "/home/oreo/Documents/oreo_sim/oreo/sim"
+
 
 # scene = "/Users/rajan/My_Replica/replica_v1/apartment_1/mesh.ply"
 
@@ -501,19 +501,18 @@ class agent_oreo(object):
 
 
 class OreoPyBulletSim(object):
-
-    def __init__(self):
-        self.oreo = oreo.Oreo_Robot(True, False, oreo_sim_path, "assembly.urdf", False)
+    def __init__(self, sim_path = "./"):
+        self.oreo = oreo.Oreo_Robot(True, False, sim_path, "assembly.urdf", False)
         self.oreo.InitModel()
         self.oreo.InitManCtrl()
-        a = self.oreo.read_oreo_yaw_pitch_actuator_data()
-        if a == 0:
-            print("Building scan data takes minutes ....")
-            self.oreo.build_oreo_scan_yaw_pitch_actuator_data()
-        self.oreo.get_max_min_yaw_pitch_values()
+        # self.oreo.get_max_min_yaw_pitch_values()
         # read the interpolator function from pickle file
         b = self.oreo.read_interpolator_functions()
         if b == 0:
+            a = self.oreo.read_oreo_yaw_pitch_actuator_data()
+            if a == 0:
+                print("Building scan data takes minutes ....")
+                self.oreo.build_oreo_scan_yaw_pitch_actuator_data()
             self.oreo.produce_interpolators()
         return
 
@@ -544,7 +543,7 @@ class OreoPyBulletSim(object):
 
 if __name__ == "__main__":
 
-    pybullet_sim = OreoPyBulletSim()
+    pybullet_sim = OreoPyBulletSim("/Users/rajan/mytest/")
     oreo_in_habitat = agent_oreo(depth_camera=False, loc_depth_cam = 'c', foveation=False)
     delta_move = 0.1
     ang_quat = quaternion.from_rotation_vector([0.0, 0.0, 0.0])

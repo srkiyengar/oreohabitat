@@ -201,7 +201,7 @@ def test_joint_info (myrobot):
     return
 
 if __name__ == "__main__":
-    robot = oreo.Oreo_Robot(True, True, "/home/oreo/Documents/oreo_sim/oreo/sim", "assembly.urdf", True)
+    robot = oreo.Oreo_Robot(True, True, "./", "assembly.urdf", True)
     #robot = oreo.Oreo_Robot(True, True, "/home/oreo/Documents/oreo_sim/oreo/sim", "assembly.urdf", True)
     robot.InitModel()
     print(robot.GetJointNames())
@@ -211,6 +211,7 @@ if __name__ == "__main__":
     #test_joint_info(robot)
     #my_results = test_IK(robot)
     #read table data from pickle file
+
     a = robot.read_oreo_yaw_pitch_actuator_data()
     if a == 0:
         print("Building scan data takes minutes ....")

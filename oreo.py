@@ -23,7 +23,7 @@ def setup_oreo_in_pybullet():
     robot.
     :return: robot id
     '''
-    robot = Oreo_Robot(True, False, "/home/oreo/Documents/oreo_sim/oreo/sim", "assembly.urdf", False)
+    robot = Oreo_Robot(True, False, "./", "assembly.urdf", False)
     robot.InitModel()
     print(robot.GetJointNames())
     robot.InitManCtrl()
@@ -225,6 +225,12 @@ class Oreo_Robot(object):
         else:
             self.physicsClient = p.connect(p.DIRECT)
         p.setAdditionalSearchPath(urdfPath)
+        # Added by Rajan
+        if urdfName.find(urdfPath) == -1:
+            urdfname = urdfPath + urdfName
+        self.oreo_scan_data = urdfPath + self.oreo_scan_data
+        self.interpolator_pickle_file = urdfPath + self.interpolator_pickle_file
+
         urdf_flags = p.URDF_USE_INERTIA_FROM_FILE | p.URDF_MAINTAIN_LINK_ORDER | p.URDF_ENABLE_CACHED_GRAPHICS_SHAPES | p.URDF_USE_SELF_COLLISION | p.URDF_USE_SELF_COLLISION_EXCLUDE_ALL_PARENTS
         self.linkage = p.loadURDF(urdfName, self.INIT_POS, p.getQuaternionFromEuler(self.INIT_ORN), useFixedBase=1,
                                   flags=urdf_flags)
@@ -791,6 +797,10 @@ class Oreo_Robot(object):
         with open(self.oreo_scan_data,"wb") as f:
             pickle.dump(scan_data,f)
 
+        # The following addition was removed from produce_interpolators and added here.
+        self.left_eye_scan_data = scan_data[0]
+        self.right_eye_scan_data = scan_data[1]
+
 
     # reads the pickled data
     def read_oreo_yaw_pitch_actuator_data(self, filename = ""):
@@ -845,7 +855,6 @@ class Oreo_Robot(object):
 
     # create two interpolator functions, one for the left and the other for the right oreo eye
     def produce_interpolators(self):
-        self.read_oreo_yaw_pitch_actuator_data()
 
         my_lefteye_table = np.array(self.left_eye_scan_data)
         x = my_lefteye_table[:,2]   # all yaw
