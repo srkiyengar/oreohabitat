@@ -924,7 +924,6 @@ def get_sensor_observations(oreo_sim):
     rgb_left = observations["left_rgb_sensor"]
     rgb_right = observations["right_rgb_sensor"]
     depth = observations["depth_sensor"]
-
     if len(rgb_left.shape) > 2:
         rgb_left = rgb_left[..., 0:3][..., ::-1]
     if len(rgb_right.shape) > 2:

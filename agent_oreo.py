@@ -4,6 +4,10 @@ import quaternion
 import math
 import cv2
 import oreo
+from PIL import Image
+import matplotlib.pyplot as plt
+import matplotlib.image as matimage
+
 
 eye_separation = 0.058
 sensor_resolution = [512,512]
@@ -115,14 +119,27 @@ def display_image(images, left=True, right=False):
     return
 
 
-
-
-
 def get_image_patch(source_image, xloc, yloc, size):
 
     patch = source_image[xloc-size:xloc+size, yloc-size:yloc+size,0:3]
     cv2.imshow(f"Patch at {xloc}, {yloc}", patch)
     pass
+
+
+def save_image_as_image_file(any_image, name):
+    """
+
+    :param any_image: ndarray
+    :param name: name should have some_name.png or jpg etc.
+    The image in BGR is converted to RGB, then converts it to a PIL image and saved in the file format indicated
+    by the name.
+    :return:
+    """
+    new_im = any_image[...,::-1].copy()
+    im = Image.fromarray(new_im)
+    #im = Image.fromarray(any_image)
+    im.save(name)
+    return
 
 
 def calculate_rotation_to_new_direction(uvector):
@@ -404,7 +421,7 @@ class agent_oreo(object):
 
         print(f"Agent Rotation {r1}")
         '''
-        First can the eyes saccade to the new position without changing the head/neck orientation.
+        First, can the eyes saccade to the new position without changing the head/neck orientation.
         Obtain the yaw and pitch for the proposed direction for the Sensor wrt to Agent Frame.
         Determine the rotation wrt to current sensor orn. Then extract the orn wrt to agent.
         This gives the rotation from agent to new sensor position.
@@ -416,21 +433,21 @@ class agent_oreo(object):
         new_dir_left_sensorframe = self.compute_uvector_for_image_point(xLeft, yLeft)
         rotation_agent_to_leftsensor = \
             quaternion.as_rotation_matrix(r1_inv * my_agent_state.sensor_states["left_rgb_sensor"].rotation)
-        print(f"Left Sensor Rotation{my_agent_state.sensor_states['left_rgb_sensor'].rotation}")
+        #print(f"Left Sensor Rotation{my_agent_state.sensor_states['left_rgb_sensor'].rotation}")
         new_dir_left_agentframe = rotation_agent_to_leftsensor.dot(new_dir_left_sensorframe.T)
         new_dir_left_pyBframe = rotatation_matrix_from_Pybullet_to_Habitat().dot(new_dir_left_agentframe.T)
         yaw_lefteye_pyB, pitchlefteye_pyB = oreo.compute_yaw_pitch_from_vector(new_dir_left_pyBframe)
-        print(f"yawL = {yaw_lefteye_pyB}, pitchL = {pitchlefteye_pyB}")
+        print(f"Desire to move to yawL = {yaw_lefteye_pyB}, pitchL = {pitchlefteye_pyB}")
 
         # Right
         new_dir_right_sensorframe = self.compute_uvector_for_image_point(xRight, yRight)
         rotation_agent_to_rightsensor = \
             quaternion.as_rotation_matrix(r1_inv * my_agent_state.sensor_states["right_rgb_sensor"].rotation)
-        print(f"Right Sensor Rotation{my_agent_state.sensor_states['right_rgb_sensor'].rotation}")
+        #print(f"Right Sensor Rotation{my_agent_state.sensor_states['right_rgb_sensor'].rotation}")
         new_dir_right_agentframe = rotation_agent_to_rightsensor.dot(new_dir_right_sensorframe.T)
         new_dir_right_pyBframe = rotatation_matrix_from_Pybullet_to_Habitat().dot(new_dir_right_agentframe.T)
         yaw_righteye_pyB, pitchrighteye_pyB = oreo.compute_yaw_pitch_from_vector(new_dir_right_pyBframe )
-        print(f"yawR = {yaw_righteye_pyB}, pitchR = {pitchrighteye_pyB}")
+        print(f"Desire to move to yawR = {yaw_righteye_pyB}, pitchR = {pitchrighteye_pyB}")
         result = oreo_pyb_sim.is_valid_saccade([yaw_lefteye_pyB, pitchlefteye_pyB,yaw_righteye_pyB, pitchrighteye_pyB])
         if result[0] == 1:
             print("Moving Sensors to new position")
@@ -441,8 +458,8 @@ class agent_oreo(object):
             my_agent_state = self.agent.get_state()
             AL = my_agent_state.sensor_states['left_rgb_sensor'].rotation
             AR = my_agent_state.sensor_states['right_rgb_sensor'].rotation
-            print(f"After Rotation Left Sensor Rotation{AL}")
-            print(f"After Rotation Right Sensor Rotation{AR}")
+            #print(f"After Rotation Left Sensor Rotation{AL}")
+            #print(f"After Rotation Right Sensor Rotation{AR}")
             v1 = np.array([0.0,0.0,-1.0])
             AL_N = quaternion.as_rotation_matrix(r1_inv*AL).dot(v1.T)
             AR_N = quaternion.as_rotation_matrix(r1_inv*AR).dot(v1.T)

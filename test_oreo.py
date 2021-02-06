@@ -203,8 +203,6 @@ def test_joint_info (myrobot):
 if __name__ == "__main__":
     robot = oreo.Oreo_Robot(True, True, "/home/oreo/Documents/oreo_sim/oreo/sim", "assembly.urdf", True)
     #robot = oreo.Oreo_Robot(True, True, "/home/oreo/Documents/oreo_sim/oreo/sim", "assembly.urdf", True)
-    a = p.isConnected()
-    b = p.getConnectionInfo(robot.linkage)
     robot.InitModel()
     print(robot.GetJointNames())
     robot.InitManCtrl()
@@ -242,7 +240,6 @@ if __name__ == "__main__":
             orientation_righteye = np.quaternion(orn_righteye[3], orn_righteye[0], orn_righteye[1], orn_righteye[2])
     # end of test
     '''
-
     #robot.plot_interpolator_datapoints()
     #robot.compare_actuator_values()
     #interp_val = generate_interpolated_actuator_values()
