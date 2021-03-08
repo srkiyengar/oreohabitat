@@ -11,11 +11,15 @@ import matplotlib.image as matimage
 
 eye_separation = 0.058
 sensor_resolution = [512,512]
+#sensor_resolution = [256,256]
 scene = "../multi_agent/data_files/skokloster-castle.glb"
-
-
-# scene = "/Users/rajan/My_Replica/replica_v1/apartment_1/mesh.ply"
-
+#scene = "../multi_agent/data_files/van-gogh-room.glb"
+# apartment_0 crashed the mac
+# scene = "/Users/rajan/My_Replica/replica_v1/apartment_0/mesh.ply"
+#scene = "/Users/rajan/My_Replica/replica_v1/apartment_1/mesh.ply"
+#scene = "/Users/rajan/My_Replica/replica_v1/apartment_2/mesh.ply"
+#scene = "/Users/rajan/My_Replica/replica_v1/hotel_0/habitat/mesh_semantic.ply"
+#scene = "/Users/rajan/My_Replica/replica_v1/room_0/mesh.ply"
 
 def homogenous_transform(R, vect):
     """
@@ -163,7 +167,7 @@ def calculate_rotation_to_new_direction(uvector):
 
 class agent_oreo(object):
     # constructor
-    def __init__(self, depth_camera=False, loc_depth_cam = 'c', foveation=False):
+    def __init__(self, scene, depth_camera=False, loc_depth_cam = 'c', foveation=False):
 
         self. agent_config = habitat_sim.AgentConfiguration()
         # Left sensor - # oreo perspective - staring at -ive z
@@ -212,7 +216,8 @@ class agent_oreo(object):
         if foveation:
             self.backend_cfg.foveation_distortion = True
 
-        self.backend_cfg.scene.id = scene
+        self.backend_cfg.scene.id = scene   #This works in older habitat versions
+        # self.backend_cfg.scene_id = scene #newer versions like the colab install
 
         # Tie the backend of the simulator and the list of agent configurations (only one)
         self.sim_configuration = habitat_sim.Configuration(self.backend_cfg, [self.agent_config])
@@ -544,7 +549,7 @@ class OreoPyBulletSim(object):
 if __name__ == "__main__":
 
     pybullet_sim = OreoPyBulletSim("/Users/rajan/mytest/")
-    oreo_in_habitat = agent_oreo(depth_camera=False, loc_depth_cam = 'c', foveation=False)
+    oreo_in_habitat = agent_oreo(scene, depth_camera=False, loc_depth_cam = 'c', foveation=False)
     delta_move = 0.1
     ang_quat = quaternion.from_rotation_vector([0.0, 0.0, 0.0])
     delta_ang_ccw  = quaternion.from_rotation_vector([0.0, 2*np.pi/3,0.0])
