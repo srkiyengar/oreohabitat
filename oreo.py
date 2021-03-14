@@ -69,7 +69,10 @@ def compute_yaw_pitch_from_vector(uvector):
     pitch = np.degrees(np.arccos(rz))
     rxy = np.sqrt(rx * rx + ry * ry)
     if rxy != 0:
-        yaw = np.degrees(np.arcsin(ry/rxy))
+        if (rx >= 0):
+            yaw = np.degrees(np.arcsin(ry/rxy))
+        else:
+            yaw = 180  # Yaw set to out of bound value
     else:
         yaw = 0
     return (yaw, pitch)

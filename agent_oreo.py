@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 import matplotlib.image as matimage
 
 
+
 eye_separation = 0.058
 sensor_resolution = [512,512]
 #sensor_resolution = [256,256]
@@ -226,11 +227,13 @@ class agent_oreo(object):
         self.agent = self.sim.get_agent(self.agent_id)
         self.initial_agent_state = self.agent.get_state()
         print(f"Agent rotation {self.initial_agent_state.rotation} Agent position {self.initial_agent_state.position}" )
+        self.agent_head_neck_rotation = np.quaternion(1,0,0,0)
         return
 
     def reset_state(self):
         #Agent rotation quaternion(1, 0, 0, 0) - Agent position[0.9539339, 0.1917877, 12.163067]
         self.agent.set_state(self.initial_agent_state,infer_sensor_states=False)
+        self.agent_head_neck_rotation = np.quaternion(1, 0, 0, 0)
 
 
     def get_agent_sensor_position_orientations(self):
@@ -259,6 +262,41 @@ class agent_oreo(object):
             return agent_orientation, agent_position, s1, s2, s3
         else:
             return agent_orientation, agent_position, s1, s2
+
+
+    def rotate_head_neck(self, rot_quat, oreo_py):
+        """ rot_quat: rotation in quaternion of the head/neck with respect to it current orientation
+        Use this function to rotate the head neck of the robot head. Since Habitat does not distinguish between body and
+        head_neck movement of the agent, we have to keep track of it separately.
+        oreo_py: The oreo pybullet simulation object
+        """
+
+        new_headneck_orn = self.agent_head_neck_rotation * rot_quat
+        result = oreo_py.is_valid_head_neck_rotation(new_headneck_orn)
+        if result == 1:
+            current_agent_state = self.agent.get_state()
+            # save the inverse of the agent rotation before the head-neck rotation
+            inv_agent_rotation = current_agent_state.rotation.inverse()
+            # Include head_neck rotation into agent rotation
+            current_agent_state.rotation = current_agent_state.rotation*rot_quat
+            # update the sensor states
+            current_agent_state.sensor_states["left_rgb_sensor"].rotation = \
+                current_agent_state.rotation*(
+                            inv_agent_rotation*current_agent_state.sensor_states["left_rgb_sensor"].rotation)
+            current_agent_state.sensor_states["right_rgb_sensor"].rotation = \
+                current_agent_state.rotation*(
+                            inv_agent_rotation*current_agent_state.sensor_states["right_rgb_sensor"].rotation)
+
+            if self.num_sensors == 3:
+                current_agent_state.sensor_states["depth_sensor"].rotation = \
+                    current_agent_state.rotation*(
+                                inv_agent_rotation*current_agent_state.sensor_states["depth_sensor"].rotation)
+
+            self.agent.set_state(current_agent_state, infer_sensor_states=False)
+            # keep track of the head_neck position after the rot.
+            self.agent_head_neck_rotation = new_headneck_orn
+        else:
+            print(f"No head neck rotation performed")
 
 
     def rotate_sensors_wrt_to_current_sensor_pose_around_Y(self, direction='ccw', my_angle=np.pi / 20):
@@ -338,7 +376,7 @@ class agent_oreo(object):
 
     def move_and_rotate_agent(self, rotation, move=[0.0, 0.0, 0.0], ref="relative"):
         """
-        The sensors orientation or position with respect to agent frame in unchanged.
+        The sensors orientation or position with respect to agent frame is unchanged.
         :param rotation: quaternion
         :param move: list
         :param ref: relative - relative to current agent position/orientation or absolute wrt to habitat
@@ -439,8 +477,8 @@ class agent_oreo(object):
         rotation_agent_to_leftsensor = \
             quaternion.as_rotation_matrix(r1_inv * my_agent_state.sensor_states["left_rgb_sensor"].rotation)
         #print(f"Left Sensor Rotation{my_agent_state.sensor_states['left_rgb_sensor'].rotation}")
-        new_dir_left_agentframe = rotation_agent_to_leftsensor.dot(new_dir_left_sensorframe.T)
-        new_dir_left_pyBframe = rotatation_matrix_from_Pybullet_to_Habitat().dot(new_dir_left_agentframe.T)
+        new_dir_leftsensor_wrt_agentframe = rotation_agent_to_leftsensor.dot(new_dir_left_sensorframe.T)
+        new_dir_left_pyBframe = rotatation_matrix_from_Pybullet_to_Habitat().dot(new_dir_leftsensor_wrt_agentframe.T)
         yaw_lefteye_pyB, pitchlefteye_pyB = oreo.compute_yaw_pitch_from_vector(new_dir_left_pyBframe)
         print(f"Desire to move to yawL = {yaw_lefteye_pyB}, pitchL = {pitchlefteye_pyB}")
 
@@ -449,8 +487,8 @@ class agent_oreo(object):
         rotation_agent_to_rightsensor = \
             quaternion.as_rotation_matrix(r1_inv * my_agent_state.sensor_states["right_rgb_sensor"].rotation)
         #print(f"Right Sensor Rotation{my_agent_state.sensor_states['right_rgb_sensor'].rotation}")
-        new_dir_right_agentframe = rotation_agent_to_rightsensor.dot(new_dir_right_sensorframe.T)
-        new_dir_right_pyBframe = rotatation_matrix_from_Pybullet_to_Habitat().dot(new_dir_right_agentframe.T)
+        new_dir_rightsensor_wrt_agentframe = rotation_agent_to_rightsensor.dot(new_dir_right_sensorframe.T)
+        new_dir_right_pyBframe = rotatation_matrix_from_Pybullet_to_Habitat().dot(new_dir_rightsensor_wrt_agentframe.T)
         yaw_righteye_pyB, pitchrighteye_pyB = oreo.compute_yaw_pitch_from_vector(new_dir_right_pyBframe )
         print(f"Desire to move to yawR = {yaw_righteye_pyB}, pitchR = {pitchrighteye_pyB}")
         result = oreo_pyb_sim.is_valid_saccade([yaw_lefteye_pyB, pitchlefteye_pyB,yaw_righteye_pyB, pitchrighteye_pyB])
@@ -479,6 +517,7 @@ class agent_oreo(object):
             pass
             # Agent frame to point to the
         return
+
 
     def get_sensor_observations(self):
         """
@@ -524,9 +563,8 @@ class OreoPyBulletSim(object):
     def is_valid_saccade(self, angles):
         """
         :param angles: left yaw, pitch, right yaw, pitch angles as a tuple wrt to agent frame
-        :return: a tuple 1 (success), left, right rotations or 0 (failure) and head neck rotation
-        Oreo Head/neck rotation limits for yaw + to - 90 degrees pitch is -55 to +70 (cable impinged at 70)
-        Pitch translates to a range of 35 to 160 (Pitch 0 is aligned to +z and 180 to -z).
+        :return: a tuple 1 (success), left, right rotations or 0 (failure) where 001 sequence
+        represents collision while 000 is out of range
         :param angles:
         :return:
         """
@@ -538,12 +576,31 @@ class OreoPyBulletSim(object):
                 leftSensor_wrt_Agent = compute_eye_saccade_from_PyBframe(lefteye_orn)
                 rightSensor_wrt_Agent = compute_eye_saccade_from_PyBframe(righteye_orn)
                 return 1, leftSensor_wrt_Agent, rightSensor_wrt_Agent
-            else:
-                return (0,)
+            else:   # There is collision in moving to the point.
+                return 0,0,1
 
+        else:   # The given yaw pitch is outside the range of actuator values
+            return 0,0,0      #out of range
+
+
+    def is_valid_head_neck_rotation(self, rotation_quat):
+        """
+        rotation_quat: in quaternion, the orientation of head_neck
+        Converting the Quaternion to Rotation matrix and taking the unit vector corresponding to z-axis
+        and rotate move it to pyB frame to compute yaw and pitch.
+        Yaw + to - 90 degrees, pitch is -55 to +70 translates to a range of 35 to 160 since pitch 0 is
+        aligned to +z and 180 to -z of the PyBframe. FYI - Roll of +40 t0 -40 roll is not programmed in.
+        """
+
+        head_neck_orn_matrix = quaternion.as_rotation_matrix(rotation_quat)
+        z_axis = -head_neck_orn_matrix[:, 2]
+        view_direction = rotatation_matrix_from_Pybullet_to_Habitat().dot(z_axis.T)
+        yaw_headneck_pyB, pitch_headneck_pyB = oreo.compute_yaw_pitch_from_vector(view_direction)
+        if -90 < yaw_headneck_pyB < 90 and 35 < pitch_headneck_pyB < 160:
+            return 1
         else:
-            return (0,)
-
+            print(f"Out of range either yaw {yaw_headneck_pyB} or pitch {pitch_headneck_pyB}")
+            return 0
 
 
 if __name__ == "__main__":
@@ -620,5 +677,11 @@ if __name__ == "__main__":
             oreo_in_habitat.saccade_to_new_point(w/2,(h/2)-8, w/2, (h/2)-8, pybullet_sim)
         elif k == ord('d'):
             oreo_in_habitat.saccade_to_new_point(w/2,(h/2)+8, w/2, (h/2)+8, pybullet_sim)
+        elif k == ord('h'):
+            oreo_in_habitat.rotate_head_neck(quaternion.from_rotation_vector([0,15*np.pi/180,0]),
+                                             pybullet_sim)
+        elif k == ord('g'):
+            oreo_in_habitat.rotate_head_neck(quaternion.from_rotation_vector([15*np.pi/180,0,0]),
+                                             pybullet_sim)
         else:
             pass
