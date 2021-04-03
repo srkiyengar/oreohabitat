@@ -11,8 +11,9 @@ scene_filename = "./saliency_map/skokloster-castle.glb"
 my_block = 16
 eye_hov = 120
 total_points = 10
+new_max = 150
 
-def scale_image(some_image, new_max):
+def scale_image(some_image):
     vmin = some_image.min()
     vmax = some_image.max()
     some_image = (some_image - vmin) * new_max / (vmax - vmin)
@@ -52,11 +53,14 @@ class saliency(object):
         self.scene = scene[:, :, ::-1]
         self.reduced_salmap = skimage.measure.block_reduce(self.salmap, block_size=(block_dim, block_dim), \
                                                            func=np.amax)
-        self.reduced_salmap = scale_image(self.reduced_salmap,150)
+        self.reduced_salmap = scale_image(self.reduced_salmap)
         self.reduced_sal_points = []
         # Macular angle is 18 out of HFOV (120); d should be 5
+        # We ignore (d-1)/2 pixels on horizontal and vertical directions of a salient pixel
+        # When dim = 16x16 for map reduction, d=5 means 2 pixels on each side, 32 pixels in 512 scale
+        # Each red. image pixel = 16 regular approximately 3.5 degrees
         self.d = math.ceil((18.0 * self.salmap.shape[0]) / (camera_hov * block_dim))
-        print(f"The kernel dimension d = {self.d}")
+        print(f"The dimension d = {self.d}")
         # compute salient points list
         for i in range(num_points):
             val, r, c = find_max_and_index(self.reduced_salmap)
@@ -66,7 +70,7 @@ class saliency(object):
         for i in range(num_points):
             self.reduced_salmap[self.reduced_sal_points[i][1], self.reduced_sal_points[i][2]] = 255-i*10
         
-        self.recreated_salmap = scale_image(np.copy(self.salmap),150)
+        self.recreated_salmap = scale_image(np.copy(self.salmap))
         self.center_points = []
         self.show_sal_point_for_full_image()
 
@@ -106,4 +110,5 @@ if __name__ == "__main__":
     r1c2.imshow(sal_object.salmap)
     r2c1.imshow(sal_object.reduced_salmap)
     r2c2.imshow(sal_object.recreated_salmap)
+    plt.show()
     print(f"job completed")
