@@ -2,12 +2,18 @@ import pickle
 import numpy as np
 import skimage.measure
 import math
-
 import matplotlib.pyplot as plt
+import os
 
-#fname = "./saliency_map/apartment1"
-fname = "./saliency_map/skokloster-castle.glb.saliency"
-scene_filename = "./saliency_map/skokloster-castle.glb"
+
+#fname = "./saliency_map/apartment_1.saliency"
+#fname = "./saliency_map/van-gogh-room-glb.saliency"
+fname = "./saliency_map/skokloster-castle-glb.saliency"
+
+#scene_filename = "./saliency_map/apartment_1"
+#scene_filename = "./saliency_map/van-gogh-room-glb"
+scene_filename = "./saliency_map/skokloster-castle-glb"
+
 my_block = 16
 eye_hov = 120
 total_points = 10
@@ -50,6 +56,7 @@ class saliency(object):
             finally:
                 exit(1)
 
+        self.salmap_file = salmap_file
         self.scene = scene[:, :, ::-1]
         self.reduced_salmap = skimage.measure.block_reduce(self.salmap, block_size=(block_dim, block_dim), \
                                                            func=np.amax)
@@ -97,6 +104,24 @@ class saliency(object):
         return
 
 
+    def save_output(self):
+        head, tail = os.path.split(self.salmap_file)
+        d = tail.find(".")
+        if d != -1:
+            tail = tail[0:d]
+
+        output_filename = head + '/' + tail + "-salicency-info"
+        output = []
+        output.append(self.recreated_salmap)
+        output.append(self.center_points)
+        try:
+            with open(output_filename, "wb") as f:
+                pickle.dump(output, f)
+
+        except IOError as e:
+            print("Failure: To open/write image and data file {}".format(output_filename))
+
+
 if __name__ == "__main__":
 
     sal_object = saliency(scene_filename, fname, my_block, eye_hov, total_points)
@@ -111,4 +136,16 @@ if __name__ == "__main__":
     r2c1.imshow(sal_object.reduced_salmap)
     r2c2.imshow(sal_object.recreated_salmap)
     plt.show()
+    sal_object.save_output()
+
+    head, tail = os.path.split(fname)
+    d = tail.find(".")
+    if d != -1:
+        tail = tail[0:d]
+    salfile = head + '/' + tail + "-salicency-info"
+    try:
+        with open(salfile, "rb") as f:
+            sal_data = pickle.load(f)
+    except IOError as e:
+        print(f"Failure: Opening pickle file {salfile}")
     print(f"job completed")

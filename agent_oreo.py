@@ -5,10 +5,10 @@ import math
 import cv2
 import oreo
 from PIL import Image
-import os.path
+import os
 import pickle
 from datetime import datetime
-import ntpath
+
 import matplotlib.pyplot as plt
 import matplotlib.image as matimage
 
@@ -291,6 +291,7 @@ class agent_oreo(object):
         self.counter = 0  # counter for saccade file numbering
         self.filename = self.create_unique_filename(scene)
         self.my_images = self.get_sensor_observations()
+        self.current_saved_image = "empty"
         return
 
     def reset_state(self):
@@ -306,19 +307,24 @@ class agent_oreo(object):
         and intial agent orientation. This can be used in combination with the counter to create a
         numbered sequence of image files.'''
 
+        '''
         file_prefix = str(datetime.now())[:16]
         file_prefix = file_prefix.replace(" ", "-")
         file_prefix = file_prefix.replace(":", "-")
-        scene_name = ntpath.basename(scene_file)
-        d = ntpath.basename(scene_name).find(".")
+        '''
+        head, scene_name = os.path.split(scene_file)
+        d = scene_name.find(".")
         if d != -1:
             scene_name = scene_name[0:d]
+        '''
         initial_orn = quaternion.as_float_array(self.initial_agent_state.rotation)
         val1 = '_' + str(initial_orn[0])+ "-" + str(initial_orn[1]) + "-" + str(initial_orn[3]) \
                + "-" + str(initial_orn[3])
         initial_pos = self.initial_agent_state.position
         val2= str(initial_pos[0]) + "-" + str(initial_pos[1]) + "-" + str(initial_pos[2])
         my_file = file_prefix + "-" + scene_name + val1 + '_' + val2 + "--"
+        '''
+        my_file = scene_name + "--"
         return my_file
 
     def get_agent_sensor_position_orientations(self):
@@ -666,18 +672,23 @@ class agent_oreo(object):
         output.append(self.left_sensor_hfov)
         output.append(self.focal_distance)
         output.append(self.my_images)
-        output.append(self.left_sensor.orientation)
-        output.append(self.right_sensor.orientation)
 
-        rgb_eye = self.destination + self.filename + self.counter
+
+        rgb_eye = self.destination + '/' + self.filename + str(self.counter)
         try:
             with open(rgb_eye, "wb") as f:
                 pickle.dump(output, f)
                 self.counter += 1
+                self.current_saved_image = rgb_eye
+                print(f"Saved Image file{rgb_eye}")
         except IOError as e:
             print("Failure: To open/write image and data file {}".format(rgb_eye))
             return 0
         return 1
+
+
+    def get_current_saved_image_and_info(self):
+        return self.current_saved_image
 
 
 class OreoPyBulletSim(object):
@@ -739,11 +750,6 @@ class OreoPyBulletSim(object):
             return 0
 
 
-
-
-
-
-
 if __name__ == "__main__":
 
     pybullet_sim = OreoPyBulletSim("/Users/rajan/mytest/")
@@ -761,6 +767,9 @@ if __name__ == "__main__":
         k = cv2.waitKey(0)
         if k == ord('q'):
             break
+        elif k == ord('1'):
+            oreo_in_habitat.save_view()
+            c = 3
         elif k == ord('f'):
             oreo_in_habitat.move_and_rotate_agent(ang_quat, [0.0, 0.0, -delta_move])
         elif k == ord('b'):
@@ -775,17 +784,17 @@ if __name__ == "__main__":
             oreo_in_habitat.move_and_rotate_agent(delta_ang_cw, [0.0,0.0,0.0])
         elif k == ord('c'):
             oreo_in_habitat.move_and_rotate_agent(delta_ang_ccw, [0.0, 0.0, 0.0])
-        elif k == ord('2'):
+        elif k == ord('8'):
             #oreo_in_habitat.reset_state()
             dc = oreo_in_habitat.compute_uvector_for_image_point(w/4, h/4)
             rot_quat = calculate_rotation_to_new_direction(dc)
             oreo_in_habitat.rotate_sensors_wrt_to_current_sensor_pose([rot_quat,rot_quat,rot_quat])
-        elif k == ord('3'):
+        elif k == ord('9'):
             #oreo_in_habitat.reset_state()
             dc = oreo_in_habitat.compute_uvector_for_image_point(3*w/4, 3*h/4)
             rot_quat = calculate_rotation_to_new_direction(dc)
             oreo_in_habitat.rotate_sensors_wrt_to_current_sensor_pose([rot_quat,rot_quat,rot_quat])
-        elif k == ord('4'):
+        elif k == ord('e'):
             oreo_in_habitat.reset_state()
             dc = oreo_in_habitat.compute_uvector_for_image_point(0, h/2)
             rot_quat = calculate_rotation_to_new_direction(dc)
@@ -793,15 +802,15 @@ if __name__ == "__main__":
             next_quat = rot_quat * a
             print(f"Quaternion {rot_quat} at 0,h/2, next quat {next_quat}, a ={a}")
             oreo_in_habitat.rotate_sensors_wrt_to_current_sensor_pose([rot_quat, rot_quat, rot_quat])
-        elif k == ord('5'):
+        elif k == ord('w'):
             oreo_in_habitat.reset_state()
             dc = oreo_in_habitat.compute_uvector_for_image_point(w, h/2)
             rot_quat = calculate_rotation_to_new_direction(dc)
             print(f"Quaternion {rot_quat} at w,h/2")
             oreo_in_habitat.rotate_sensors_wrt_to_current_sensor_pose([rot_quat, rot_quat, rot_quat])
-        elif k == ord('6'):
+        elif k == ord('z'):
             oreo_in_habitat.saccade_to_new_point((w/2)+8,(h/2)+8,w/2,h/2, pybullet_sim)
-        elif k == ord('7'):
+        elif k == ord('p'):
             oreo_in_habitat.saccade_to_new_point((w / 2) - 8, (h / 2) - 8, w / 2, h / 2, pybullet_sim)
         elif k == ord('l'):
             print(f"Move Left count --{left}--")
@@ -831,3 +840,5 @@ if __name__ == "__main__":
                                              pybullet_sim)
         else:
             pass
+
+
