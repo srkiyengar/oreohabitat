@@ -223,7 +223,7 @@ class agent_oreo(object):
     def __init__(self, scene, result_folder, depth_camera=False, loc_depth_cam = 'c', foveation=False):
 
 
-        self. agent_config = habitat_sim.AgentConfiguration()
+        self.agent_config = habitat_sim.AgentConfiguration()
         # Left sensor - # oreo perspective - staring at -ive z
         self.left_sensor = habitat_sim.SensorSpec()
         self.left_sensor.sensor_type = habitat_sim.SensorType.COLOR
